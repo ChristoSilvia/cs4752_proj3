@@ -56,14 +56,10 @@ add_message_files(
 ## Generate services in the 'srv' folder
 add_service_files(
   FILES
-  SampleCSpace.srv
-  NearestNeighbor.srv
   JointAction.srv
   EndEffectorPosition.srv
   EndEffectorVelocity.srv
-  SetParameters.srv
   MoveRobot.srv
-  SetNormalVec.srv
 )
 
 ## Generate actions in the 'action' folder

@@ -4,12 +4,12 @@ import rospy
 
 
 class ImpactLocationOnFarWall():
-    def __init__():
+    def __init__(our_side):
         self.w = 0.6858
 		self.l = 1.3843
 		self.w_goal = 0.29845
 		self.gripper_offset = 0.04
-		self.our_side = 'left'
+		self.our_side = our_side
 
 
 	def impact_location_on_far_wall(self, x, y, tan_theta):
@@ -31,3 +31,6 @@ class ImpactLocationOnFarWall():
 		return np.clip(-0.5*self.w_g + gripper_offset, 
 						0.5*self.w_g - gripper_offset, 
 						impact_location)
+
+if __name__ == '__main__':
+    ImpactLocationOnFarWall('left')
