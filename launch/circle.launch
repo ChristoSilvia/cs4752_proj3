@@ -1,0 +1,8 @@
+<launch>
+    <node name="test_circle" pkg="cs4752_proj2" type="test-circle.py"></node>
+    <node name="joint_action_server" pkg="cs4752_proj2" type="joint_action_server.py"></node>
+    <node name="SimpleHTTPServer" pkg="cs4752_proj2" type="SimpleHTTPServer.sh"></node>
+    <include file="$(find rosbridge_server)/launch/rosbridge_websocket.launch" >
+        <arg name="port" value="9090"/>
+    </include>
+</launch>
