@@ -5,11 +5,12 @@ import rospy
 import cv2
 import time
 from std_msgs.msg import String, Header
-from geometry_msgs.msg import Pose, Quaternion, Point, PoseArray
+from geometry_msgs.msg import Pose, Quaternion, Point, PoseArray, PoseStamped
 from sensor_msgs.msg import Image, CameraInfo
 from cv_bridge import CvBridge, CvBridgeError
 import numpy as np
 import math
+from tf.transformations import *
 
 
 
@@ -21,7 +22,7 @@ class single_color_vision:
 
 	def __init__(self):
 		print "initializing single color vision object"
-		self.ball_pub = rospy.Publisher("/ball_pose",Pose)
+		self.ball_pub = rospy.Publisher("/ball_pose",PoseStamped)
 		self.block_pub = rospy.Publisher("/block_poses", PoseArray)
 		#self.camerainfo_sub = rospy.Subscriber('camera/rgb/camera_info', CameraInfo, self.cameraIntrinsicsCB)
 		#self.camera_matrix = None
@@ -29,16 +30,18 @@ class single_color_vision:
 		self.pixel_radius = 10#2.1539 #radius in pixels at 1 meter of orange ball
 		self.lastImageTime = time.time()
 		self.imageWaitTime = .01
-		self.pinkhueVal = 168 #175 for hand, 168 for kinect, may need to continually tune
+		self.pinkhueVal = 163 #175 for hand, 168 for kinect, may need to continually tune
 		self.bluehueVal = 110
+		self.pink_ball_pubs = 0
 		#160 #pink
 
 		#topic for the raw image/camera/depth_registered/image_raw
 		#try camera/rgb/image_color/compressed for greater efficiency
 		self.bridge = CvBridge()
 		self.image_sub = rospy.Subscriber("/camera/rgb/image_rect_color",Image,self.imagecallback, queue_size=1)
-		self.depth_image_sub = rospy.Subscriber("/camera/depth_registered/sw_registered/image_rect", Image, self.depthcallback, queue_size=10)
+		self.depth_image_sub = rospy.Subscriber("/camera/depth_registered/hw_registered/image_rect", Image, self.depthcallback, queue_size=1)
 		self.depth_image = None
+		self.depth_image_set = False
 		#self.image_sub = rospy.Subscriber("/cameras/left_hand_camera/image",Image,self.imagecallback, queue_size=1)
 		print "subscribed to /camera/rgb/image_rect_color"
 		print "done initializing"
@@ -76,7 +79,16 @@ class single_color_vision:
 		#print cv_image.shape
 		
 		#TODO fix depth image
-		ball_pose = self.findBall(cv_image)
+
+		if self.depth_image != None :
+			#print "Got depth"
+			colorLower = 1.3
+			colorUpper = 3
+			mask = cv2.inRange(self.depth_image, colorLower, colorUpper)
+			cv_image = cv2.bitwise_and(cv_image,cv_image,mask = mask)
+			#print "imshowing new code"
+			cv2.imshow('HSV_Mask_BLUE_BLOCKS',cv_image)
+		self.findObjects(cv_image)
 		self.lastImageTime = time.time()
 
 
@@ -172,14 +184,14 @@ class single_color_vision:
 
 	def findBlobsofHue(self, hueVal, lookfor, rgbimage) :
 
-		hue_range = 5
-		colorLower = (hueVal-hue_range, 100, 100)
+		hue_range = 2
+		colorLower = (hueVal-hue_range, 70, 70)
 		colorUpper =(hueVal+hue_range, 255, 255)
 		blurred = cv2.GaussianBlur(rgbimage, (11, 11), 0)
 		hsv = cv2.cvtColor(blurred, cv2.COLOR_BGR2HSV)
 		mask = cv2.inRange(hsv, colorLower, colorUpper)
-		mask = cv2.erode(mask, None, iterations=2)
-		mask = cv2.dilate(mask, None, iterations=2)
+		#mask = cv2.erode(mask, None, iterations=2)
+		#mask = cv2.dilate(mask, None, iterations=2)
 
 		res = cv2.bitwise_and(rgbimage,rgbimage,mask = mask)
 
@@ -195,14 +207,14 @@ class single_color_vision:
 			c = max(cnts, key=cv2.contourArea)
 			#try :
 			#print type(cnts[0])
-			cnts.remove(c)
+			#cnts.remove(c)
 			#except :
 				#pass
 			
 			((x, y), radius) = cv2.minEnclosingCircle(c)
 	 		lookfor = lookfor - 1
 			
-			if radius > 5:# only proceed if the radius meets a minimum size
+			if radius > 3:# only proceed if the radius meets a minimum size
 				blobsFound.append([x,y,radius])
 				cv2.circle(res, (int(x), int(y)), int(radius), (0,255,255), 2)
 
@@ -211,7 +223,7 @@ class single_color_vision:
 
 	#find a ball and return its transform relative to the camera
 	#http://www.pyimagesearch.com/2015/09/14/ball-tracking-with-opencv/
-	def findBall(self, rgbimage) :
+	def findObjects(self, rgbimage) :
 		
 		initialtime = time.time()
 	
@@ -238,18 +250,18 @@ class single_color_vision:
 			print e
 		"""
 
-		#used for tuning
-		# pinkmax = 169
-		# pinkmin = 168
-		# self.pinkhueVal = (self.pinkhueVal + 1) % pinkmax
-		# if self.pinkhueVal < pinkmin :
-		# 	self.pinkhueVal = pinkmin
+		#used for TUNING
+		"""pinkmax = 175
+		pinkmin = 155
+		self.pinkhueVal = (self.pinkhueVal + .1) % pinkmax
+		if self.pinkhueVal < pinkmin :
+			self.pinkhueVal = pinkmin
 
-		# print "Pink Hue Val"
-		# print self.pinkhueVal
+		print "Pink Hue Val"
+		print self.pinkhueVal"""
 
 
-		pink_balls = self.findBlobsofHue(self.pinkhueVal, 1, rgbimage)
+		pink_balls = self.findBlobsofHue(self.pinkhueVal, 2, rgbimage)
 		if pink_balls != [] :
 			bi = pink_balls[0]
 			if self.depth_image != None :
@@ -262,9 +274,17 @@ class single_color_vision:
 	 			ball_pose = self.project((int(bi[0]), int(bi[1])), int(bi[2]), rgbimage.shape[1], rgbimage.shape[0])
 			try:
 				if ball_pose != None :
-					self.ball_pub.publish(ball_pose)
+					self.pink_ball_pubs += 1
+					base_pose_stamped = PoseStamped()
+					base_pose_stamped.header = Header()
+					base_pose_stamped.header.seq = self.pink_ball_pubs
+					base_pose_stamped.header.stamp = rospy.Time.now()
+					base_pose_stamped.header.frame_id = "kinect_frame"
+					base_pose_stamped.pose = ball_pose
+					self.ball_pub.publish(base_pose_stamped)
 			except CvBridgeError, e:
 				print e
+
 		
 		
 

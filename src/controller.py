@@ -97,11 +97,14 @@ class controller() :
 
         def get_kinect_frame_points(self):
             calibration_points = ["BOTTOM_MIDDLE", "BOTTOM_CORNER", "BALL_START"]
+            
+            # TODO use vision to find all corners
             hardcoded_points = [
                 Vector3(0.5,0.0,1.0),
                 Vector3(0.0,0.0,1.0),
                 Vector3(0.4,-0.2,1.0)
             ]
+
             point_pos = []
             for i in range(0,len(calibration_points)):
                 point_name = calibration_points[i]
