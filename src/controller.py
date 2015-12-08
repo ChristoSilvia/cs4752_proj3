@@ -108,7 +108,20 @@ class controller() :
 
 
             
-            # TODO use vision to find all corners
+            # TODO use vision to find all points
+            # indexes = {
+            #     "BOTTOM_CORNER": 0,
+            #     "BOTTOM_B_NEAR_GOAL": 1,
+            #     "BOTTOM_B_NEAR_MIDDLE": 2,
+            #     "BOTTOM_MIDDLE": 3,
+            #     "TOP_CORNER": 4,
+            #     "TOP_B_NEAR_GOAL": 5,
+            #     "TOP_B_NEAR_MIDDLE": 6,
+            #     "TOP_MIDDLE": 7,
+            #     "GOAL": 8,
+            #     "BALL_START": 9,
+            #     "BLOCK_START": 10
+            # }
             hardcoded_points = [
                 np.array([0.5,0.0,1.0]),
                 np.array([0.0,0.0,1.0]),
@@ -151,10 +164,7 @@ class controller() :
             base_coords = base_coords[:3]/base_coords[3]
             base_coords.reshape((1, 3))
             # print "base_coords: {0}".format(base_coords)
-            return numpy_to_vector3(base_coords)
-
-    
-
+            return base_coords
 
         def calibrate(self):
             loginfo("Calibrating Playing Field and Kinect Frame")
@@ -174,14 +184,9 @@ class controller() :
             self.playing_field = {}
             for point_name in kinect_points:
                 kinect_pt = kinect_points[point_name]
-                base_pt = KinectToBasePoint(kinect_transform, kinect_pt[0],kinect_pt[1],kinect_pt[2])
+                base_pt = numpy_to_vector3(KinectToBasePoint(kinect_transform, kinect_pt[0],kinect_pt[1],kinect_pt[2]))
                 self.playing_field[point_name] = base_pt
             print self.playing_field
-
-            if self.limb == 'left':
-                pass
-            else:
-                pass
 
             # vec1 = point_pos[1] - point_pos[0]
             # vec2 = point_pos[2] - point_pos[0]

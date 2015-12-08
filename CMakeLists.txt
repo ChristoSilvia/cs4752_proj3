@@ -65,6 +65,7 @@ add_service_files(
   MoveRobot.srv
   SetNormalVec.srv
   SetParameters.srv
+  BlockPoses.srv
 )
 
 ## Generate actions in the 'action' folder

@@ -25,7 +25,7 @@ class single_color_vision:
 		self.ball_pub = rospy.Publisher("/ball_pose",PoseStamped)
 		#self.block_pub = rospy.Publisher("/block_poses", PoseArray)
 		
-		#self.position_server = createService("block_poses", PoseArray, self.findBlocks, "")
+		self.position_server = createService("block_poses", BlockPoses, self.findBlocks, "")
 	
 		self.pixel_radius = 10#2.1539 #radius in pixels at 1 meter of orange ball
 		self.lastImageTime = time.time()
