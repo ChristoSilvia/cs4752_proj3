@@ -14,9 +14,9 @@ from baxter_interface import CHECK_VERSION
 
 
 
-class torque_thrower :
+class thrower :
 	def __init__(self):
-		rospy.init_node('torque_thrower')
+		rospy.init_node('thrower')
 		rospy.loginfo("Initialized Torque thrower")
 
 		#baxter_interface.RobotEnable(CHECK_VERSION).enable()
@@ -97,6 +97,6 @@ class torque_thrower :
 
 if __name__ == '__main__':
 	try:
-		torque_thrower()
+		thrower()
 	except rospy.ROSInterruptException:
 		pass

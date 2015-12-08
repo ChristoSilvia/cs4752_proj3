@@ -1,0 +1,3 @@
+int32 num_blocks
+---
+geometry_msgs/PoseArray poses

@@ -264,13 +264,13 @@ class controller() :
         green_B.position = Point(B_center[0],B_center[1],B_center[2])
         print green_B
 
-        desired_block_poses = []
+        self.desired_block_poses = []
         inc = self.block_size + self.block_size/2
         length = (self.num_blocks - 1) * inc
         for i in range(0,self.num_blocks) :
             bp = deepcopy(green_B)
             bp.position.x +=  i * inc - length/2
-            desired_block_poses.append(bp)
+            self.desired_block_poses.append(bp)
 
 
         for i in range(0,self.num_blocks):
@@ -279,7 +279,7 @@ class controller() :
 
             self.move_robot(CLOSE_GRIPPER, self.limb, Pose())
 
-            self.move_robot(MOVE_TO_POSE_INTERMEDIATE, self.limb, desired_block_poses[i])
+            self.move_robot(MOVE_TO_POSE_INTERMEDIATE, self.limb, self.desired_block_poses[i])
 
             self.move_robot(OPEN_GRIPPER, self.limb, Pose())
 
