@@ -17,6 +17,7 @@ import tf
 import tf2_ros
 from tf.transformations import *
 from copy import deepcopy
+import cv2
 
 
 
@@ -54,6 +55,7 @@ class controller() :
         self.limb = rospy.get_param("limb")
         self.PHASE = 1
 
+        self.playing_field = {}
         self.rate = rospy.Rate(2)
         loginfo("Starting GameLoop")
         self.GameLoop()
@@ -84,48 +86,92 @@ class controller() :
 
         def get_base_frame_points(self):
             calibration_points = ["BOTTOM_MIDDLE", "BOTTOM_CORNER", "BALL_START"]
-            point_count = 0
-            point_pos = []
+            point_pos = {}
             print calibration_points
             for point_name in calibration_points:
                 prompt = "Press Enter when Arm is on the %s" % point_name
                 cmd = raw_input(prompt)
-                point_pos.append((point_name, self.get_tool_pos()))
-                # print point_pos[point_count]
-                point_count += 1
+                point_pos[point_name] = self.get_tool_pos()
             return point_pos
 
         def get_kinect_frame_points(self):
             calibration_points = ["BOTTOM_MIDDLE", "BOTTOM_CORNER", "BALL_START"]
+
+            # img = cv2.imread('dave.jpg')
+            # gray = cv2.cvtColor(img,cv2.COLOR_BGR2GRAY)
+            # edges = cv2.Canny(gray,50,150,apertureSize = 3)
+            # minLineLength = 100
+            # maxLineGap = 10
+            # lines = cv2.HoughLinesP(edges,1,np.pi/180,100,minLineLength,maxLineGap)
+            # for x1,y1,x2,y2 in lines[0]:
+            # cv2.line(img,(x1,y1),(x2,y2),(0,255,0),2)
+
+
             hardcoded_points = [
-                Vector3(0.5,0.0,1.0),
-                Vector3(0.0,0.0,1.0),
-                Vector3(0.4,-0.2,1.0)
+                np.array([0.5,0.0,1.0]),
+                np.array([0.0,0.0,1.0]),
+                np.array([0.4,-0.2,1.0])
             ]
-            point_pos = []
+            point_pos = {}
             for i in range(0,len(calibration_points)):
                 point_name = calibration_points[i]
-                point_pos.append((point_name, hardcoded_points[i]))
+                point_pos[point_name] = hardcoded_points[i]
             return point_pos
 
 
         def get_kinect_transform(self, base_points, kinect_points):
-            pass
+            shape = (1, len(base_points), 3)
+            source = np.zeros(shape, np.float32)
+            target = np.zeros(shape, np.float32)
+
+            count = 0
+            for point_name in base_points:
+                kinect_pt = list(kinect_points[point_name])
+                source[0][count] = kinect_pt
+                base_pt = list(base_points[point_name])
+                target[0][count] = base_pt
+                count += 1
+            # print source
+            # print target
+
+            retval, M, inliers = cv2.estimateAffine3D(source, target)
+            return M
+
+        def KinectToBasePoint(self, M, kinect_x,kinect_y,kinect_z):
+            # self.transform_setup()
+            # M = np.dot(self.kinect_translation, self.kinect_rotation)
+
+            kinect_coords = np.array([kinect_x,kinect_y,kinect_z,1])
+            base_coords = np.dot(M, kinect_coords.T)
+            base_coords = base_coords[:3]/base_coords[3]
+            base_coords.reshape((1, 3))
+            # print "base_coords: {0}".format(base_coords)
+            return base_coords
+
+    
+
 
         def calibrate(self):
             loginfo("Calibrating Playing Field and Kinect Frame")
             
             base_points = get_base_frame_points(self)
-            print base_points
+            # print base_points
 
             prompt = "Press Enter when Arm is out of the way of the kinect's view of the table"
             cmd = raw_input(prompt)
 
             kinect_points = get_kinect_frame_points(self)
+            # print kinect_points
 
             kinect_transform = get_kinect_transform(self, base_points, kinect_points)
+            print kinect_transform
             
-            limits = PlayingFieldLimits()
+            self.playing_field = {}
+            for point_name in kinect_points:
+                kinect_pt = kinect_points[point_name]
+                base_pt = KinectToBasePoint(kinect_transform, kinect_pt[0],kinect_pt[1],kinect_pt[2])
+                playing_field[point_name] = 
+            # limits = PlayingFieldLimits()
             if self.limb == 'left':
                 pass
             else:
@@ -134,7 +180,7 @@ class controller() :
             # vec1 = point_pos[1] - point_pos[0]
             # vec2 = point_pos[2] - point_pos[0]
             
-            # self.plane_norm = np.cross(vec1, vec2)
+            # self.kinect_norm = np.cross(vec1, vec2)
             # self.set_plane_normal_srv(Vector3(self.plane_norm[0], self.plane_norm[1], self.plane_norm[2]))
             # # plane_origin = np.average(point_pos, axis=0)
             # plane_origin = point_pos[0]
@@ -151,14 +197,13 @@ class controller() :
             # self.plane_rotation = np.append(self.plane_rotation,[[0,0,0]],axis=0)
             # self.plane_rotation = np.append(self.plane_rotation,[[0],[0],[0],[1]],axis=1)
             
-            # print "#################################"
-            # print "Finished Calibrating Plane"
-            # print "self.plane_translation"
-            # print translation_from_matrix(self.plane_translation)
-            # print "self.plane_rotation"
-            # print self.plane_rotation
-            # # print euler_from_matrix(self.plane_rotation)
-            # print "#################################"
+            print "#################################"
+            print "Finished Calibrating Playing Field and Kinect Frame"
+            print "kinect_translation"
+            print translation_from_matrix(kinect_transform)
+            print "kinect_rotation"
+            print euler_from_matrix(kinect_transform)
+            print "#################################"
 
             self.calibrated_plane = True
 
