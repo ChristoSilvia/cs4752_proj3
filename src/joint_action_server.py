@@ -67,7 +67,8 @@ class JointActionServer():
         self.draw_on_plane_service = createService('draw_on_plane', JointAction, self.move_draw_on_plane, self.limb_name)
         self.velocity_srv = createService('end_effector_velocity', EndEffectorVelocity, self.get_velocity_response, self.limb_name)
         self.param_src = createService('set_parameters', SetParameters, self.parameter_response, self.limb_name)
-        self.position_srv = createService('end_effector_position', EndEffectorPosition, self.get_position_response, self.limb_name)
+        
+        # self.position_srv = createServiceProxy('end_effector_position', EndEffectorPosition, self.limb_name)
         
         rospy.spin()
 

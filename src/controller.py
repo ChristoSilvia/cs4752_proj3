@@ -11,7 +11,7 @@ from config import *
 from geometry_msgs.msg import *
 from visualization_msgs.msg import Marker, MarkerArray
 import baxter_interface
-from baxter_interface import CHECK_VERSION
+from baxter_interface import *
 from baxter_pykdl import baxter_kinematics
 import tf
 import tf2_ros
@@ -36,13 +36,16 @@ class controller() :
         
         baxter_interface.RobotEnable(CHECK_VERSION).enable()
 
+
         
         self.move_robot = createServiceProxy("move_robot", MoveRobot, "")
         # self.move_robot_plane_service = createService('move_robot_plane', MoveRobot, self.handle_move_robot_plane, "")
 
 
         # self.joint_action_server = createServiceProxy("move_end_effector_trajectory", JointAction, "left")
-        self.position_server = createServiceProxy("end_effector_position", EndEffectorPosition, "left")
+        # self.position_server = createServiceProxy("end_effector_position", EndEffectorPosition, "left")
+
+        # self.get_block_poses = createServiceProxy("get_block_poses", BlockPoses, "")
 
         # self.tf_br = tf2_ros.TransformBroadcaster()
 
@@ -52,11 +55,14 @@ class controller() :
         # self.ax.hold(True)
         # plt.show()
 
+        self.block_size = .045
         self.limb = rospy.get_param("limb")
+        self.arm = baxter_interface.Limb(self.limb)
+        self.num_blocks = rospy.get_param("num_blocks")
         self.PHASE = 1
 
         self.playing_field = {}
-        self.rate = rospy.Rate(2)
+        self.rate = rospy.Rate(1)
         loginfo("Starting GameLoop")
         self.GameLoop()
 
@@ -91,11 +97,11 @@ class controller() :
             for point_name in calibration_points:
                 prompt = "Press Enter when Arm is on the %s" % point_name
                 cmd = raw_input(prompt)
-                point_pos[point_name] = self.get_tool_pos()
+                point_pos[point_name] = np.array(self.arm.endpoint_pose()['position'])
             return point_pos
 
         def get_kinect_frame_points(self):
-            calibration_points = ["BOTTOM_MIDDLE", "BOTTOM_CORNER", "BALL_START", "TOP_CORNER"]
+            calibration_points = ["BOTTOM_MIDDLE", "BOTTOM_CORNER", "BALL_START", "TOP_CORNER", "BOTTOM_B_NEAR_GOAL", "TOP_B_NEAR_GOAL"]
 
             # img = cv2.imread('dave.jpg')
             # gray = cv2.cvtColor(img,cv2.COLOR_BGR2GRAY)
@@ -124,6 +130,8 @@ class controller() :
             # }
             hardcoded_points = [
                 np.array([0.5,0.0,1.0]),
+                np.array([0.0,0.0,1.0]),
+                np.array([0.0,0.0,1.0]),
                 np.array([0.0,0.0,1.0]),
                 np.array([0.0,0.0,1.0]),
                 np.array([0.4,-0.2,1.0])
@@ -184,7 +192,7 @@ class controller() :
             self.playing_field = {}
             for point_name in kinect_points:
                 kinect_pt = kinect_points[point_name]
-                base_pt = numpy_to_vector3(KinectToBasePoint(kinect_transform, kinect_pt[0],kinect_pt[1],kinect_pt[2]))
+                base_pt = KinectToBasePoint(kinect_transform, kinect_pt[0],kinect_pt[1],kinect_pt[2])
                 self.playing_field[point_name] = base_pt
             print self.playing_field
 
@@ -229,7 +237,52 @@ class controller() :
     
     def PHASE2(self):
         loginfo("PHASE: 2")
-        pass
+
+
+        def initBlockPositions(self):
+            rospy.loginfo("Initializing block positions")
+            self.initial_pose = Pose()
+            pos = np.array(self.arm.endpoint_pose()['position'])
+            ori = np.array(self.arm.endpoint_pose()['orientation'])
+            self.initial_pose.position = Point(pos[0],pos[1],pos[2])
+            self.initial_pose.orientation = Quaternion(ori[0],ori[1],ori[2],ori[3])
+            # print self.initial_pose
+
+            block_poses = []
+            for i in range(0,self.num_blocks) :
+                bp = deepcopy(self.initial_pose)
+                bp.position.z -=  i * self.block_size
+                block_poses.append(bp)
+            # print self.block_poses
+            return block_poses
+
+
+        block_poses = initBlockPositions(self)
+        # resp = self.move_robot(req.action, req.limb, base_pose)
+        green_B = deepcopy(self.initial_pose)
+        B_center = (self.playing_field["BOTTOM_B_NEAR_GOAL"] + self.playing_field["TOP_B_NEAR_GOAL"]) / 2.
+        green_B.position = Point(B_center[0],B_center[1],B_center[2])
+        print green_B
+
+        desired_block_poses = []
+        inc = self.block_size + self.block_size/2
+        length = (self.num_blocks - 1) * inc
+        for i in range(0,self.num_blocks) :
+            bp = deepcopy(green_B)
+            bp.position.x +=  i * inc - length/2
+            desired_block_poses.append(bp)
+
+
+        for i in range(0,self.num_blocks):
+            if i != 0:
+                self.move_robot(MOVE_TO_POSE_INTERMEDIATE, self.limb, block_poses[i])
+
+            self.move_robot(CLOSE_GRIPPER, self.limb, Pose())
+
+            self.move_robot(MOVE_TO_POSE_INTERMEDIATE, self.limb, desired_block_poses[i])
+
+            self.move_robot(OPEN_GRIPPER, self.limb, Pose())
+
 
     def PHASE3(self):
 
@@ -241,6 +294,7 @@ class controller() :
             # return False
 
         def CHECK_BLOCKS(self):
+            # block_poses = self.get_block_poses(self.num_blocks)
             return True
             # return False
 

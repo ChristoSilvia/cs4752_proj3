@@ -92,8 +92,8 @@ generate_messages(
 ## DEPENDS: system dependencies of this project that dependent projects also need
 catkin_package(
 #  INCLUDE_DIRS include
-#  LIBRARIES zic_proj1
- CATKIN_DEPENDS roscpp rospy std_msgs message_runtime
+#  LIBRARIES cs4752_proj3
+ CATKIN_DEPENDS roscpp rospy std_msgs geometry_msgs message_runtime
 #  DEPENDS system_lib
 )
 
@@ -109,19 +109,19 @@ include_directories(
 )
 
 ## Declare a cpp library
-# add_library(zic_proj1
-#   src/${PROJECT_NAME}/zic_proj1.cpp
+# add_library(cs4752_proj3
+#   src/${PROJECT_NAME}/cs4752_proj3.cpp
 # )
 
 ## Declare a cpp executable
-# add_executable(zic_proj1_node src/zic_proj1_node.cpp)
+# add_executable(cs4752_proj3_node src/cs4752_proj3_node.cpp)
 
 ## Add cmake target dependencies of the executable/library
 ## as an example, message headers may need to be generated before nodes
-# add_dependencies(zic_proj1_node zic_proj1_generate_messages_cpp)
+# add_dependencies(cs4752_proj3_node cs4752_proj3_generate_messages_cpp)
 
 ## Specify libraries to link a library or executable target against
-# target_link_libraries(zic_proj1_node
+# target_link_libraries(cs4752_proj3_node
 #   ${catkin_LIBRARIES}
 # )
 
@@ -140,7 +140,7 @@ include_directories(
 # )
 
 ## Mark executables and/or libraries for installation
-# install(TARGETS zic_proj1 zic_proj1_node
+# install(TARGETS cs4752_proj3 cs4752_proj3_node
 #   ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
 #   LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
 #   RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
@@ -165,7 +165,7 @@ include_directories(
 #############
 
 ## Add gtest based cpp test target and link libraries
-# catkin_add_gtest(${PROJECT_NAME}-test test/test_zic_proj1.cpp)
+# catkin_add_gtest(${PROJECT_NAME}-test test/test_cs4752_proj3.cpp)
 # if(TARGET ${PROJECT_NAME}-test)
 #   target_link_libraries(${PROJECT_NAME}-test ${PROJECT_NAME})
 # endif()

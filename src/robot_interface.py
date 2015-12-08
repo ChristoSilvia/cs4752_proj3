@@ -24,14 +24,19 @@ class RobotInterface():
         
         self.hand_pose_left = Pose()
         self.hand_pose_right = Pose()
+
+        self.limb_left = Limb('left')
+        self.limb_right = Limb('right')
         
         self.gripper_left = Gripper('left')
         self.gripper_right = Gripper('right')
 
-        rospy.Subscriber("/robot/limb/left/endpoint_state", EndpointState, self.respondToEndpointLeft)
-        rospy.Subscriber("/robot/limb/right/endpoint_state", EndpointState, self.respondToEndpointRight)
+        # rospy.Subscriber("/robot/limb/left/endpoint_state", EndpointState, self.respondToEndpointLeft)
+        # rospy.Subscriber("/robot/limb/right/endpoint_state", EndpointState, self.respondToEndpointRight)
         
         move_robot_service = createService('move_robot', MoveRobot, self.handle_move_robot, "")
+
+        # self.position_srv = createService('end_effector_position', EndEffectorPosition, self.get_position_response, self.limb)
 
         try :
             rospy.loginfo("Initializing service proxy for /SolvePositionIK...")
@@ -48,6 +53,20 @@ class RobotInterface():
         print "Ready to move robot."
 
         rospy.spin()
+
+    def get_position_response(self, args):
+        position = self.get_position()
+        return EndEffectorPositionResponse(Vector3(position[0],position[1],position[2]))
+
+    # def get_velocity_response(self, args):
+    #     velocity = self.get_velocity()
+    #     return EndEffectorVelocityResponse(Vector3(velocity[0], velocity[1], velocity[2]))
+
+    def get_position(self):
+        return np.array(self.limb.endpoint_pose()['position']) 
+
+    # def get_velocity(self):
+    #     return np.array(self.limb.endpoint_velocity()['linear'])
 
     def respondToEndpointLeft(self, EndpointState) :
         self.hand_pose_left = deepcopy(EndpointState.pose)

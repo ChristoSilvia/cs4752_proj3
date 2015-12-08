@@ -4,6 +4,7 @@ import sys
 import rospy
 import cv2
 import time
+from cs4752_proj3.srv import *
 from std_msgs.msg import String, Header
 from geometry_msgs.msg import Pose, Quaternion, Point, PoseArray, PoseStamped
 from sensor_msgs.msg import Image, CameraInfo
@@ -25,7 +26,7 @@ class single_color_vision:
 		self.ball_pub = rospy.Publisher("/ball_pose",PoseStamped)
 		#self.block_pub = rospy.Publisher("/block_poses", PoseArray)
 		
-		self.position_server = createService("block_poses", BlockPoses, self.findBlocks, "")
+		self.get_block_poses = createService("get_block_poses", BlockPoses, self.findBlocks, "")
 	
 		self.pixel_radius = 10#2.1539 #radius in pixels at 1 meter of orange ball
 		self.lastImageTime = time.time()
@@ -218,8 +219,8 @@ class single_color_vision:
 		cv2.imshow(hsvstring,res)
 		return blobsFound
 
-	def findBlocks(self, num_blocks) :
-		blockList = self.findBlobsofHue(self.bluehueVal, num_blocks, self.rgb_image)
+	def findBlocks(self, req) :
+		blockList = self.findBlobsofHue(self.bluehueVal, req.num_blocks, self.rgb_image)
 		block_poses_list = []
 		for block in blockList :
 			if self.depth_image != None :
@@ -240,7 +241,7 @@ class single_color_vision:
 		base_pose_stamped.header.stamp = rospy.Time.now()
 		base_pose_stamped.header.frame_id = "kinect_frame"
 		block_poses.poses = block_poses_list
-		return block_poses 
+		return BlockPosesResponse(block_poses)
 	
 	
 		
