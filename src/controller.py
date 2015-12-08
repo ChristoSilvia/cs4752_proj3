@@ -36,18 +36,15 @@ class controller() :
         baxter_interface.RobotEnable(CHECK_VERSION).enable()
 
         
-        # self.move_robot = createServiceProxy("move_robot", MoveRobot, "")
+        self.move_robot = createServiceProxy("move_robot", MoveRobot, "")
         # self.move_robot_plane_service = createService('move_robot_plane', MoveRobot, self.handle_move_robot_plane, "")
 
 
         # self.joint_action_server = createServiceProxy("move_end_effector_trajectory", JointAction, "left")
-        # self.position_server = createServiceProxy("end_effector_position", EndEffectorPosition, "left")
+        self.position_server = createServiceProxy("end_effector_position", EndEffectorPosition, "left")
 
         # self.tf_br = tf2_ros.TransformBroadcaster()
 
-        self.got_plane_traj = False
-        self.calibrated_plane = False
-        self.plane_norm = Vector3()
         # self.calibrate_plane()
 
         #Generate the figure
@@ -64,11 +61,13 @@ class controller() :
         #         self.sendTransform()
         #     rate.sleep()
 
-        limb = 'left'
+        self.limb = rospy.get_param("limb")
         self.MODE = BLOCK
         self.PHASE = 1
+
+        self.rate = rospy.Rate(1)
         print "Starting GameLoop"
-        self.GameLoop(limb)
+        self.GameLoop()
 
         rospy.spin()
 
@@ -91,13 +90,103 @@ class controller() :
 
     #     self.tf_br.sendTransform(t)
 
-    def GameLoop(self, limb):
-        # rate = rospy.Rate(30)
-        while not rospy.is_shutdown():
+    def PHASE1(self):
+        loginfo("PHASE: 1")
+
+        def calibrate(self):
+            point_count = 0
+            point_pos = []
+            print "Calibrating Playing Field"
+            print "Go bottom corner to bottom middle, then up to ball circle"
+            while point_count < 3 :
+                prompt = "Press Enter when Arm is on the %d Playing Field point" % point_count
+                cmd = raw_input(prompt)
+                point_pos.append(self.get_tool_pos())
+                print point_pos[point_count]
+                point_count += 1
+
+            bottom_corner = point_pos[0]
+            bottom_middle = point_pos[1]
+            ball_circle = point_pos[2]
+
+            if self.limb == 'left':
+                pass
+            else:
+                pass
+
+            # vec1 = point_pos[1] - point_pos[0]
+            # vec2 = point_pos[2] - point_pos[0]
+            
+            # self.plane_norm = np.cross(vec1, vec2)
+            # self.set_plane_normal_srv(Vector3(self.plane_norm[0], self.plane_norm[1], self.plane_norm[2]))
+            # # plane_origin = np.average(point_pos, axis=0)
+            # plane_origin = point_pos[0]
+
+            # self.plane_translation = translation_matrix(plane_origin)
+            
+            # x_plane = vec1/np.linalg.norm(vec1)
+            # y_plane = np.cross(self.plane_norm, vec1)
+            # y_plane = y_plane/np.linalg.norm(y_plane)
+            # z_plane = self.plane_norm/np.linalg.norm(self.plane_norm)
+            # #need rotation to make norm the z vector
+            # self.plane_rotation = np.array([x_plane, y_plane, z_plane]).T
+
+            # self.plane_rotation = np.append(self.plane_rotation,[[0,0,0]],axis=0)
+            # self.plane_rotation = np.append(self.plane_rotation,[[0],[0],[0],[1]],axis=1)
+            
+            # print "#################################"
+            # print "Finished Calibrating Plane"
+            # print "self.plane_translation"
+            # print translation_from_matrix(self.plane_translation)
+            # print "self.plane_rotation"
+            # print self.plane_rotation
+            # # print euler_from_matrix(self.plane_rotation)
+            # print "#################################"
+
+            self.calibrated_plane = True
+
+            # self.sendTransform()
+
+        self.calibrated_plane = False
+        self.plane_norm = Vector3()
+        calibrate(self)
+
+
+
+    
+    def PHASE2(self):
+        loginfo("PHASE: 2")
+        pass
+
+    def PHASE3(self):
+
+        def BLOCK(self):
+            pass
+
+        def GRAB(self):
+            return True
+            # return False
+
+        def CHECK_BLOCKS(self):
+            return True
+            # return False
+
+        def MOVE_BLOCKS(self):
+            pass
+
+        def THROW(self):
+            pass
+
+    
+        loginfo("PHASE: 3")
+
+        gameover = False
+        
+        while not rospy.is_shutdown() and not gameover:
 
             if self.MODE == BLOCK :
                 loginfo("MODE: BLOCK")
-                # returns true when its sure the ball is going away from the goal and still on our side
+                # returns true when its sure the ball not going in the goal and still on our side
                 self.BLOCK()
                 self.MODE = GRAB
 
@@ -114,6 +203,7 @@ class controller() :
                     
             elif self.MODE == CHECK_BLOCKS :
                 loginfo("MODE: CHECK_BLOCKS")
+                # moves the arm out of the way and then uses single color vision to find the blocks
                 # returns true if the blocks are in the right place, false if they need to be moved
                 blocks_ok = self.CHECK_BLOCKS()
                 if blocks_ok:
@@ -124,78 +214,38 @@ class controller() :
                 
             elif self.MODE == MOVE_BLOCKS :
                 loginfo("MODE: MOVE_BLOCKS")
+                # returns after the the blocks have been moved
                 self.MOVE_BLOCKS()
                 self.MODE = GRAB
 
                 
             elif self.MODE == THROW :
                 loginfo("MODE: THROW")
+                # returns after the throw
                 self.THROW()
+                self.MODE = BLOCK
 
-            # rate.sleep()
+            self.rate.sleep()
 
-    def BLOCK(self):
-        pass
+    def GameLoop(self):
+        while not rospy.is_shutdown():
 
-    def GRAB(self):
-        return True
-
-    def CHECK_BLOCKS(self):
-        return True
-
-    def MOVE_BLOCKS(self):
-        pass
-
-    def THROW(self):
-        pass
+            if self.PHASE == 1 :
+                # returns after calibration
+                self.PHASE1()
+                self.PHASE = 2
 
 
+            elif self.PHASE == 2 :
+                # returns after the the blocks have been moved
+                self.PHASE2()
+                self.PHASE = 3
 
-    def calibrate_plane(self):
-        point_count = 0
-        point_pos = []
-        print "Calibrating Plane"
-        print "Go left to right from pt1 to pt2 and then up to pt3"
-        while point_count < 3 :
-            prompt = "Press Enter when Arm is on the %d plane point" % point_count
-            cmd = raw_input(prompt)
-            point_pos.append(self.get_tool_pos())
-            print point_pos[point_count]
-            point_count += 1
 
-        vec1 = point_pos[1] - point_pos[0]
-        vec2 = point_pos[2] - point_pos[0]
-        
-        self.plane_norm = np.cross(vec1, vec2)
-        self.set_plane_normal_srv(Vector3(self.plane_norm[0], self.plane_norm[1], self.plane_norm[2]))
-        # plane_origin = np.average(point_pos, axis=0)
-        plane_origin = point_pos[0]
+            elif self.PHASE == 3 :
+                self.PHASE3()
 
-        self.plane_translation = translation_matrix(plane_origin)
-        
-        x_plane = vec1/np.linalg.norm(vec1)
-        y_plane = np.cross(self.plane_norm, vec1)
-        y_plane = y_plane/np.linalg.norm(y_plane)
-        z_plane = self.plane_norm/np.linalg.norm(self.plane_norm)
-        #need rotation to make norm the z vector
-        self.plane_rotation = np.array([x_plane, y_plane, z_plane]).T
-
-        self.plane_rotation = np.append(self.plane_rotation,[[0,0,0]],axis=0)
-        self.plane_rotation = np.append(self.plane_rotation,[[0],[0],[0],[1]],axis=1)
-        
-        print "#################################"
-        print "Finished Calibrating Plane"
-        print "self.plane_translation"
-        print translation_from_matrix(self.plane_translation)
-        print "self.plane_rotation"
-        print self.plane_rotation
-        # print euler_from_matrix(self.plane_rotation)
-        print "#################################"
-
-        self.calibrated_plane = True
-
-        # self.sendTransform()
-
+            self.rate.sleep()
 
     def get_tool_pos(self):
         tool_vec = self.position_server().position

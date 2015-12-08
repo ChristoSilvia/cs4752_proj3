@@ -25,9 +25,10 @@ class torque_thrower :
 		rs = baxter_interface.RobotEnable(CHECK_VERSION)
 		init_state = rs.state().enabled
 		self.gripper = baxter_interface.Gripper(limb, CHECK_VERSION)
+		speed = 4
 
 		joint_names = ["s0", "s1", "e0", "e1","w0", "w1", "w2"]
-		throw = [0,0,0,0,0, -4,0]
+		throw = [0,0,0,0,0, -speed,0]
 		zero = [0,0,0,0,0,0,0]
 		self.throw_dict = {}
 		self.zero_dict = {}
