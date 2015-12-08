@@ -5,8 +5,8 @@ import numpy as np
 from scipy.spatial import KDTree
 from scipy.interpolate import PiecewisePolynomial
 from matplotlib import pyplot as plt
-from cs4752_proj2.msg import *
-from cs4752_proj2.srv import *
+from cs4752_proj3.msg import *
+from cs4752_proj3.srv import *
 from config import *
 from geometry_msgs.msg import *
 from visualization_msgs.msg import Marker, MarkerArray
@@ -18,46 +18,43 @@ import tf2_ros
 from tf.transformations import *
 from copy import deepcopy
 
-zoffset = -.007
-# zoffset = 0
+
 
 def loginfo(logstring):
     rospy.loginfo("Controller: {0}".format(logstring))
 
 class controller() :
-    def __init__(self):
+    def __init__(self, limb):
         rospy.init_node('controller')
         loginfo("Initialized node Controller")
 
-        rospy.Subscriber("/plane_traj", Trajectory, self.plane_trajCb, queue_size=10000)
-        self.move_plane_traj_srv = createService('move_plane_traj', JointAction, self.handle_move_plane_traj, "left")
+        # rospy.Subscriber("/plane_traj", Trajectory, self.plane_trajCb, queue_size=10000)
+        # self.move_plane_traj_srv = createService('move_plane_traj', JointAction, self.handle_move_plane_traj, "left")
 
-        self.set_plane_normal_srv = createServiceProxy('set_normal_vec', SetNormalVec, "")
+        # self.set_plane_normal_srv = createServiceProxy('set_normal_vec', SetNormalVec, "")
         
         baxter_interface.RobotEnable(CHECK_VERSION).enable()
+
         
-        self.move_robot = createServiceProxy("move_robot", MoveRobot, "")
-        self.move_robot_plane_service = createService('move_robot_plane', MoveRobot, self.handle_move_robot_plane, "")
+        # self.move_robot = createServiceProxy("move_robot", MoveRobot, "")
+        # self.move_robot_plane_service = createService('move_robot_plane', MoveRobot, self.handle_move_robot_plane, "")
 
 
-        self.joint_action_server = createServiceProxy("move_end_effector_trajectory", JointAction, "left")
-        self.draw_on_plane = createServiceProxy("draw_on_plane", JointAction, "left")
-        self.position_server = createServiceProxy("end_effector_position", EndEffectorPosition, "left")
-        # self.tool_trajectory = createServiceProxy("move_tool_trajectory", JointAction, "left")
-        # self.tool_position_server = createServiceProxy("tool_position", EndEffectorPosition, "left")
+        # self.joint_action_server = createServiceProxy("move_end_effector_trajectory", JointAction, "left")
+        # self.position_server = createServiceProxy("end_effector_position", EndEffectorPosition, "left")
 
         # self.tf_br = tf2_ros.TransformBroadcaster()
 
         self.got_plane_traj = False
         self.calibrated_plane = False
         self.plane_norm = Vector3()
-        self.calibrate_plane()
+        # self.calibrate_plane()
 
         #Generate the figure
-        self.fig = plt.figure()
-        self.ax = self.fig.add_subplot(111)
-        self.ax.hold(True)
-        plt.show()
+        # self.fig = plt.figure()
+        # self.ax = self.fig.add_subplot(111)
+        # self.ax.hold(True)
+        # plt.show()
 
 
 
@@ -66,6 +63,12 @@ class controller() :
         #     if self.got_plane_traj or self.calibrated_plane:
         #         self.sendTransform()
         #     rate.sleep()
+
+        limb = 'left'
+        self.MODE = BLOCK
+        self.PHASE = 1
+        print "Starting GameLoop"
+        self.GameLoop(limb)
 
         rospy.spin()
 
@@ -87,6 +90,66 @@ class controller() :
     #     t.transform.rotation.w = q[3]
 
     #     self.tf_br.sendTransform(t)
+
+    def GameLoop(self, limb):
+        # rate = rospy.Rate(30)
+        while not rospy.is_shutdown():
+
+            if self.MODE == BLOCK :
+                loginfo("MODE: BLOCK")
+                # returns true when its sure the ball is going away from the goal and still on our side
+                self.BLOCK()
+                self.MODE = GRAB
+
+                
+            elif self.MODE == GRAB :
+                loginfo("MODE: GRAB")
+                # returns true if grabbing was successful, false if the ball goes on the other side
+                grabbed = self.GRAB()
+                if grabbed:
+                    self.MODE = CHECK_BLOCKS
+                else:
+                    self.MODE = BLOCK
+
+                    
+            elif self.MODE == CHECK_BLOCKS :
+                loginfo("MODE: CHECK_BLOCKS")
+                # returns true if the blocks are in the right place, false if they need to be moved
+                blocks_ok = self.CHECK_BLOCKS()
+                if blocks_ok:
+                    self.MODE = THROW
+                else:
+                    self.MODE = MOVE_BLOCKS
+
+                
+            elif self.MODE == MOVE_BLOCKS :
+                loginfo("MODE: MOVE_BLOCKS")
+                self.MOVE_BLOCKS()
+                self.MODE = GRAB
+
+                
+            elif self.MODE == THROW :
+                loginfo("MODE: THROW")
+                self.THROW()
+
+            # rate.sleep()
+
+    def BLOCK(self):
+        pass
+
+    def GRAB(self):
+        return True
+
+    def CHECK_BLOCKS(self):
+        return True
+
+    def MOVE_BLOCKS(self):
+        pass
+
+    def THROW(self):
+        pass
+
+
 
     def calibrate_plane(self):
         point_count = 0
@@ -265,4 +328,5 @@ class controller() :
 
 
 if __name__ == '__main__':
-    ct = controller()
+    limb = 'left'
+    ct = controller(limb)

@@ -14,7 +14,7 @@ from baxter_core_msgs.msg import * #(SolvePositionIK, SolvePositionIKRequest)
 from baxter_core_msgs.srv import *
 from baxter_interface import *
 from baxter_pykdl import baxter_kinematics
-from cs4752_proj2.srv import *
+from cs4752_proj3.srv import *
 from config import *
 from tf.transformations import *
 from copy import deepcopy
@@ -195,11 +195,11 @@ class JointActionServer():
         A = np.empty((n,4))
         A[:,0] = T
         A[:,1:] = actual_positions.T
-        # np.savetxt("/home/cs4752/ros_ws/src/cs4752_proj2/{2}/{1}actual-positions-{0}.csv".format(paramtext,date,folder),A)
+        # np.savetxt("/home/cs4752/ros_ws/src/cs4752_proj3/{2}/{1}actual-positions-{0}.csv".format(paramtext,date,folder),A)
         B = np.empty((n,4))
         B[:,0] = T
         B[:,1:] = precomputed_positions.T
-        # np.savetxt("/home/cs4752/ros_ws/src/cs4752_proj2/{2}/{1}precomputed-positions-{0}.csv".format(paramtext,date,folder),B)
+        # np.savetxt("/home/cs4752/ros_ws/src/cs4752_proj3/{2}/{1}precomputed-positions-{0}.csv".format(paramtext,date,folder),B)
         loginfo("saved errors")
     
     def draw_on_plane(self, times, x_positions_velocities, y_positions_velocities, z_positions_velocities):
@@ -279,11 +279,11 @@ class JointActionServer():
         A = np.empty((n,4))
         A[:,0] = T
         A[:,1:] = actual_positions.T
-        # np.savetxt("/home/cs4752/ros_ws/src/cs4752_proj2/{2}/{1}actual-positions-{0}.csv".format(paramtext,date,folder),A)
+        # np.savetxt("/home/cs4752/ros_ws/src/cs4752_proj3/{2}/{1}actual-positions-{0}.csv".format(paramtext,date,folder),A)
         B = np.empty((n,4))
         B[:,0] = T
         B[:,1:] = precomputed_positions.T
-        # np.savetxt("/home/cs4752/ros_ws/src/cs4752_proj2/{2}/{1}precomputed-positions-{0}.csv".format(paramtext,date,folder),B)
+        # np.savetxt("/home/cs4752/ros_ws/src/cs4752_proj3/{2}/{1}precomputed-positions-{0}.csv".format(paramtext,date,folder),B)
         loginfo("saved errors")
 
     def get_manipulability(self):

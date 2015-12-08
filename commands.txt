@@ -15,9 +15,9 @@ rosrun baxter_tools tuck_arms.py -u
 
 For Testing:
 
-python -i ~/ros_ws/src/cs4752_proj2/src/controller.py
+python -i ~/ros_ws/src/cs4752_proj3/src/controller.py
 
-rosrun rviz rviz -d ~/ros_ws/src/cs4752_proj2/config/plane_frame.rviz
+rosrun rviz rviz -d ~/ros_ws/src/cs4752_proj3/config/plane_frame.rviz
 
 rosrun tf2_ros static_transform_publisher 0 0 0 0 0 0 0 world base
 

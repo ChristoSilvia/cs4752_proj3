@@ -1,14 +1,14 @@
 <?xml version="1.0"?>
 <package>
-  <name>cs4752_proj2</name>
+  <name>cs4752_proj3</name>
   <version>0.0.0</version>
-  <description>The cs4752_proj2 package</description>
+  <description>The cs4752_proj3 package</description>
 
   <maintainer email="christopher.silvia@gmail.com">Christopher</maintainer>
 
   <license>BSD</license>
 
-  <url type="website">https://github.com/ChristoSilvia/cs4752-proj2</url>
+  <url type="website">https://github.com/ChristoSilvia/cs4752-proj3</url>
 
 
   <author email="iaq3@cornell.edu">Isaac Qureshi</author>

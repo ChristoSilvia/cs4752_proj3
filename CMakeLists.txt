@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 2.8.3)
-project(cs4752_proj2)
+project(cs4752_proj3)
 
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
@@ -56,8 +56,6 @@ add_message_files(
 ## Generate services in the 'srv' folder
 add_service_files(
   FILES
-  SampleCSpace.srv
-  NearestNeighbor.srv
   JointAction.srv
   EndEffectorPosition.srv
   EndEffectorVelocity.srv

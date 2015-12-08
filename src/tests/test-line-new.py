@@ -10,7 +10,7 @@ import rospy
 from config import *
 from std_msgs.msg import *
 from geometry_msgs.msg import *
-from cs4752_proj2.srv import *
+from cs4752_proj3.srv import *
 import baxter_interface
 from baxter_interface import *
 from baxter_core_msgs.msg import * #(SolvePositionIK, SolvePositionIKRequest)

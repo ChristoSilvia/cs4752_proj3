@@ -8,6 +8,15 @@ MOVE_TO_POSE = 2
 MOVE_TO_POS = 3
 MOVE_TO_POSE_INTERMEDIATE = 4
 
+BLOCK = 10
+# INTERCEPT = 11
+SEARCH = 12
+GRAB = 13
+THROW = 14
+CHECK_BLOCKS = 15
+MOVE_BLOCKS = 16
+
+
 def createServiceProxy(service,srv_type,limb):
 	name = ""
 	if limb == "":

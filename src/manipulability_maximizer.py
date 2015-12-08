@@ -14,7 +14,7 @@ from baxter_core_msgs.msg import * #(SolvePositionIK, SolvePositionIKRequest)
 from baxter_core_msgs.srv import *
 from baxter_interface import *
 from baxter_pykdl import baxter_kinematics
-from cs4752_proj2.srv import *
+from cs4752_proj3.srv import *
 from config import *
 from tf.transformations import *
 from copy import deepcopy
