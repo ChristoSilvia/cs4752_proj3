@@ -51,6 +51,7 @@ add_message_files(
   Path.msg
   PathArray.msg
   Trajectory.msg
+  PlayingFieldPoints.msg
 )
 
 ## Generate services in the 'srv' folder

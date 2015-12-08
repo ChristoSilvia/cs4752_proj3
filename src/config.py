@@ -8,6 +8,7 @@ MOVE_TO_POSE = 2
 MOVE_TO_POS = 3
 MOVE_TO_POSE_INTERMEDIATE = 4
 
+
 BLOCK = 10
 # INTERCEPT = 11
 SEARCH = 12
@@ -16,6 +17,19 @@ THROW = 14
 CHECK_BLOCKS = 15
 MOVE_BLOCKS = 16
 
+indexes = {
+	"BOTTOM_CORNER": 0,
+	"BOTTOM_B_NEAR_GOAL": 1,
+	"BOTTOM_B_NEAR_MIDDLE": 2,
+	"BOTTOM_MIDDLE": 3,
+	"TOP_CORNER": 4,
+	"TOP_B_NEAR_GOAL": 5,
+	"TOP_B_NEAR_MIDDLE": 6,
+	"TOP_MIDDLE": 7,
+	"GOAL": 8,
+	"BALL_START": 9,
+	"BLOCK_START": 10
+}
 
 def createServiceProxy(service,srv_type,limb):
 	name = ""

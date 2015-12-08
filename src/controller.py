@@ -45,28 +45,17 @@ class controller() :
 
         # self.tf_br = tf2_ros.TransformBroadcaster()
 
-        # self.calibrate_plane()
-
         #Generate the figure
         # self.fig = plt.figure()
         # self.ax = self.fig.add_subplot(111)
         # self.ax.hold(True)
         # plt.show()
 
-
-
-        # rate = rospy.Rate(30)
-        # while not rospy.is_shutdown():
-        #     if self.got_plane_traj or self.calibrated_plane:
-        #         self.sendTransform()
-        #     rate.sleep()
-
         self.limb = rospy.get_param("limb")
-        self.MODE = BLOCK
         self.PHASE = 1
 
-        self.rate = rospy.Rate(1)
-        print "Starting GameLoop"
+        self.rate = rospy.Rate(2)
+        loginfo("Starting GameLoop")
         self.GameLoop()
 
         rospy.spin()
@@ -93,22 +82,50 @@ class controller() :
     def PHASE1(self):
         loginfo("PHASE: 1")
 
-        def calibrate(self):
+        def get_base_frame_points(self):
+            calibration_points = ["BOTTOM_MIDDLE", "BOTTOM_CORNER", "BALL_START"]
             point_count = 0
             point_pos = []
-            print "Calibrating Playing Field"
-            print "Go bottom corner to bottom middle, then up to ball circle"
-            while point_count < 3 :
-                prompt = "Press Enter when Arm is on the %d Playing Field point" % point_count
+            print calibration_points
+            for point_name in calibration_points:
+                prompt = "Press Enter when Arm is on the %s" % point_name
                 cmd = raw_input(prompt)
-                point_pos.append(self.get_tool_pos())
-                print point_pos[point_count]
+                point_pos.append((point_name, self.get_tool_pos()))
+                # print point_pos[point_count]
                 point_count += 1
+            return point_pos
 
-            bottom_corner = point_pos[0]
-            bottom_middle = point_pos[1]
-            ball_circle = point_pos[2]
+        def get_kinect_frame_points(self):
+            calibration_points = ["BOTTOM_MIDDLE", "BOTTOM_CORNER", "BALL_START"]
+            hardcoded_points = [
+                Vector3(0.5,0.0,1.0),
+                Vector3(0.0,0.0,1.0),
+                Vector3(0.4,-0.2,1.0)
+            ]
+            point_pos = []
+            for i in range(0,len(calibration_points)):
+                point_name = calibration_points[i]
+                point_pos.append((point_name, hardcoded_points[i]))
+            return point_pos
 
+
+        def get_kinect_transform(self, base_points, kinect_points):
+            pass
+
+        def calibrate(self):
+            loginfo("Calibrating Playing Field and Kinect Frame")
+            
+            base_points = get_base_frame_points(self)
+            print base_points
+
+            prompt = "Press Enter when Arm is out of the way of the kinect's view of the table"
+            cmd = raw_input(prompt)
+
+            kinect_points = get_kinect_frame_points(self)
+
+            kinect_transform = get_kinect_transform(self, base_points, kinect_points)
+            
+            limits = PlayingFieldLimits()
             if self.limb == 'left':
                 pass
             else:
@@ -179,22 +196,23 @@ class controller() :
 
     
         loginfo("PHASE: 3")
+        self.MODE = BLOCK
 
-        gameover = False
+        playing = True
         
-        while not rospy.is_shutdown() and not gameover:
+        while not rospy.is_shutdown() and playing:
 
             if self.MODE == BLOCK :
                 loginfo("MODE: BLOCK")
                 # returns true when its sure the ball not going in the goal and still on our side
-                self.BLOCK()
+                BLOCK(self)
                 self.MODE = GRAB
 
                 
             elif self.MODE == GRAB :
                 loginfo("MODE: GRAB")
                 # returns true if grabbing was successful, false if the ball goes on the other side
-                grabbed = self.GRAB()
+                grabbed = GRAB(self)
                 if grabbed:
                     self.MODE = CHECK_BLOCKS
                 else:
@@ -205,7 +223,7 @@ class controller() :
                 loginfo("MODE: CHECK_BLOCKS")
                 # moves the arm out of the way and then uses single color vision to find the blocks
                 # returns true if the blocks are in the right place, false if they need to be moved
-                blocks_ok = self.CHECK_BLOCKS()
+                blocks_ok = CHECK_BLOCKS(self)
                 if blocks_ok:
                     self.MODE = THROW
                 else:
@@ -215,14 +233,14 @@ class controller() :
             elif self.MODE == MOVE_BLOCKS :
                 loginfo("MODE: MOVE_BLOCKS")
                 # returns after the the blocks have been moved
-                self.MOVE_BLOCKS()
+                MOVE_BLOCKS(self)
                 self.MODE = GRAB
 
                 
             elif self.MODE == THROW :
                 loginfo("MODE: THROW")
                 # returns after the throw
-                self.THROW()
+                THROW(self)
                 self.MODE = BLOCK
 
             self.rate.sleep()
