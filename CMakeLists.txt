@@ -51,6 +51,9 @@ add_message_files(
   Path.msg
   PathArray.msg
   Trajectory.msg
+  BallPosition.msg
+  BallPositionVelocity.msg
+  BlockerPosition.msg
 )
 
 ## Generate services in the 'srv' folder

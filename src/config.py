@@ -1,6 +1,9 @@
 #!/usr/bin/env python
 # Team: zic; Names: Zach Vinegar, Isaac Qureshi, Chris Silvia
 import rospy
+import numpy as np
+
+joint_names = ['s0', 's1', 'e0', 'e1', 'w0', 'w1', 'w2']
 
 CLOSE_GRIPPER = 0
 OPEN_GRIPPER = 1
@@ -26,3 +29,15 @@ def createService(service,srv_type,callback,limb):
 		name = "/%s/%s" % (limb,service)
 	rospy.loginfo("Initialized service for %s" % name)
 	return rospy.Service(name, srv_type, callback)
+
+def vector3_to_numpy(v):
+	return np.array([v.x, v.y, v.z])
+
+def numpy_to_vector3(n):
+	return Vector3(n[0],n[1],n[2])
+
+def numpy_to_joint_dict(limb, data):
+	joint_dict = {}
+	for joint_name, joint_data in zip(joint_names, data):
+		joint_dict[ limb + "_" + joint_name ] = joint_data
+	return joint_dict
