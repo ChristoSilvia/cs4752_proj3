@@ -11,7 +11,7 @@ from cv_bridge import CvBridge, CvBridgeError
 import numpy as np
 import math
 from tf.transformations import *
-
+from config import *
 
 
 #http://wiki.ros.org/cv_bridge/Tutorials/ConvertingBetweenROSImagesAndOpenCVImagesPython
@@ -23,10 +23,10 @@ class single_color_vision:
 	def __init__(self):
 		print "initializing single color vision object"
 		self.ball_pub = rospy.Publisher("/ball_pose",PoseStamped)
-		self.block_pub = rospy.Publisher("/block_poses", PoseArray)
-		#self.camerainfo_sub = rospy.Subscriber('camera/rgb/camera_info', CameraInfo, self.cameraIntrinsicsCB)
-		#self.camera_matrix = None
-		#cv2.namedWindow("Image window", 1)
+		#self.block_pub = rospy.Publisher("/block_poses", PoseArray)
+		
+		#self.position_server = createService("block_poses", PoseArray, self.findBlocks, "")
+	
 		self.pixel_radius = 10#2.1539 #radius in pixels at 1 meter of orange ball
 		self.lastImageTime = time.time()
 		self.imageWaitTime = .01
@@ -41,6 +41,7 @@ class single_color_vision:
 		self.image_sub = rospy.Subscriber("/camera/rgb/image_rect_color",Image,self.imagecallback, queue_size=1)
 		self.depth_image_sub = rospy.Subscriber("/camera/depth_registered/hw_registered/image_rect", Image, self.depthcallback, queue_size=1)
 		self.depth_image = None
+		self.rgb_image = None
 		self.depth_image_set = False
 		#self.image_sub = rospy.Subscriber("/cameras/left_hand_camera/image",Image,self.imagecallback, queue_size=1)
 		print "subscribed to /camera/rgb/image_rect_color"
@@ -87,20 +88,16 @@ class single_color_vision:
 			mask = cv2.inRange(self.depth_image, colorLower, colorUpper)
 			cv_image = cv2.bitwise_and(cv_image,cv_image,mask = mask)
 			#print "imshowing new code"
-			cv2.imshow('HSV_Mask_BLUE_BLOCKS',cv_image)
-		self.findObjects(cv_image)
-		self.lastImageTime = time.time()
+			
+			#cv2.imshow('HSV_Mask_BLUE_BLOCKS',cv_image)
+			self.rgb_image = cv_image
+			self.findObjects(cv_image)
+			self.lastImageTime = time.time()
 
 
 	def depthcallback(self,data):
-
-		#if self.lastDepthTime > time.time() - self.depthWaitTime :
-		#	return
-		#print "depth callback"
 		try:
-
 			self.depth_image = self.bridge.imgmsg_to_cv2(data, "passthrough")#rgba8
-			#print "Updated depth image"
 		except CvBridgeError, e:
 			print e
 
@@ -207,7 +204,7 @@ class single_color_vision:
 			c = max(cnts, key=cv2.contourArea)
 			#try :
 			#print type(cnts[0])
-			#cnts.remove(c)
+			cnts.remove(c)
 			#except :
 				#pass
 			
@@ -221,13 +218,8 @@ class single_color_vision:
 		cv2.imshow(hsvstring,res)
 		return blobsFound
 
-	#find a ball and return its transform relative to the camera
-	#http://www.pyimagesearch.com/2015/09/14/ball-tracking-with-opencv/
-	def findObjects(self, rgbimage) :
-		
-		initialtime = time.time()
-	
-		"""blockList = self.findBlobsofHue(self.bluehueVal, 6, rgbimage)
+	def findBlocks(self) :
+		blockList = self.findBlobsofHue(self.bluehueVal, 2, self.rgb_image)
 		block_poses_list = []
 		for block in blockList :
 			if self.depth_image != None :
@@ -240,15 +232,24 @@ class single_color_vision:
 				block_pose = self.project((int(block[0]), int(block[1])), int(block[2]), rgbimage.shape[1], rgbimage.shape[0])
 			block_poses_list.append(block_pose)
 		
-		try:
-			if block_poses_list != [] :
-				block_poses = PoseArray()
-				block_poses.header = Header()
-				block_poses.poses = block_poses_list
-				self.block_pub.publish(block_poses)
-		except CvBridgeError, e:
-			print e
-		"""
+		
+
+		block_poses = PoseArray()
+		block_poses.header = Header()
+		#base_pose_stamped.header.seq = self.pink_ball_pubs
+		base_pose_stamped.header.stamp = rospy.Time.now()
+		base_pose_stamped.header.frame_id = "kinect_frame"
+		block_poses.poses = block_poses_list
+		return block_poses 
+	
+	
+		
+
+	#find a ball and return its transform relative to the camera
+	#http://www.pyimagesearch.com/2015/09/14/ball-tracking-with-opencv/
+	def findObjects(self, rgbimage) :
+		
+		initialtime = time.time()
 
 		#used for TUNING
 		"""pinkmax = 175
@@ -259,7 +260,7 @@ class single_color_vision:
 
 		print "Pink Hue Val"
 		print self.pinkhueVal"""
-
+		#self.findBlocks()
 
 		pink_balls = self.findBlobsofHue(self.pinkhueVal, 2, rgbimage)
 		if pink_balls != [] :
