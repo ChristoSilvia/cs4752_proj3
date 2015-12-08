@@ -218,8 +218,8 @@ class single_color_vision:
 		cv2.imshow(hsvstring,res)
 		return blobsFound
 
-	def findBlocks(self) :
-		blockList = self.findBlobsofHue(self.bluehueVal, 2, self.rgb_image)
+	def findBlocks(self, num_blocks) :
+		blockList = self.findBlobsofHue(self.bluehueVal, num_blocks, self.rgb_image)
 		block_poses_list = []
 		for block in blockList :
 			if self.depth_image != None :
