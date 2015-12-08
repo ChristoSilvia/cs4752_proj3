@@ -6,7 +6,7 @@ from scipy.interpolate import PiecewisePolynomial
 
 import rospy
 from geometry_msgs.msg import Vector3
-from cs4752_proj2.srv import *
+from cs4752_proj3.srv import *
 import baxter_interface
 from baxter_interface import CHECK_VERSION
 from baxter_pykdl import baxter_kinematics

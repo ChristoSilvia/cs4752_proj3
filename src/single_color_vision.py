@@ -49,6 +49,14 @@ class single_color_vision:
 		cv2.startWindowThread()
 		cv2.namedWindow('HSV_Mask_BLUE_BLOCKS')
 
+		# Some interesting cv2 methods that could be used for segment finding and intersection
+		# cvtColor
+		# BILATERALfILTER
+		# CANNY
+		# houghlines
+		# arclength
+		# drawContors
+
 
 	#def cameraIntrinsicsCB (self, data) :
 	#	self.camera_matrix = data.k

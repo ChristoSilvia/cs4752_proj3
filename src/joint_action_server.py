@@ -14,21 +14,21 @@ from baxter_core_msgs.msg import * #(SolvePositionIK, SolvePositionIKRequest)
 from baxter_core_msgs.srv import *
 from baxter_interface import *
 from baxter_pykdl import baxter_kinematics
-from cs4752_proj2.srv import *
+from cs4752_proj3.srv import *
 from config import *
 from tf.transformations import *
 from copy import deepcopy
 from datetime import datetime
 
 class JointActionServer():
-    def __init__(self, limb_name='right'):
+    def __init__(self):
         rospy.init_node('joint_action_server')
         baxter_interface.RobotEnable(CHECK_VERSION).enable()
 
         # limb and joint parameters
-        self.limb_name = limb_name
-        self.limb = baxter_interface.Limb(limb_name)
-        self.limb_kin = baxter_kinematics(limb_name)
+        self.limb_name = rospy.get_param("limb")
+        self.limb = baxter_interface.Limb(self.limb_name)
+        self.limb_kin = baxter_kinematics(self.limb_name)
         self.joint_names = self.limb.joint_names()
         
         # time discretization paramters
@@ -63,11 +63,11 @@ class JointActionServer():
         self.desired_normal_force = -1.0
        
         self.set_normal_vec = createService('set_normal_vec', SetNormalVec, self.set_normal_vec, "") 
-        self.move_end_effector_trajectory = createService('move_end_effector_trajectory', JointAction, self.move_end_effector_trajectory, limb_name)
-        self.draw_on_plane_service = createService('draw_on_plane', JointAction, self.move_draw_on_plane, limb_name)
-        self.velocity_srv = createService('end_effector_velocity', EndEffectorVelocity, self.get_velocity_response, limb_name)
-        self.param_src = createService('set_parameters', SetParameters, self.parameter_response, limb_name)
-        self.position_srv = createService('end_effector_position', EndEffectorPosition, self.get_position_response, limb_name)
+        self.move_end_effector_trajectory = createService('move_end_effector_trajectory', JointAction, self.move_end_effector_trajectory, self.limb_name)
+        self.draw_on_plane_service = createService('draw_on_plane', JointAction, self.move_draw_on_plane, self.limb_name)
+        self.velocity_srv = createService('end_effector_velocity', EndEffectorVelocity, self.get_velocity_response, self.limb_name)
+        self.param_src = createService('set_parameters', SetParameters, self.parameter_response, self.limb_name)
+        self.position_srv = createService('end_effector_position', EndEffectorPosition, self.get_position_response, self.limb_name)
         
         rospy.spin()
 
@@ -195,11 +195,11 @@ class JointActionServer():
         A = np.empty((n,4))
         A[:,0] = T
         A[:,1:] = actual_positions.T
-        # np.savetxt("/home/cs4752/ros_ws/src/cs4752_proj2/{2}/{1}actual-positions-{0}.csv".format(paramtext,date,folder),A)
+        # np.savetxt("/home/cs4752/ros_ws/src/cs4752_proj3/{2}/{1}actual-positions-{0}.csv".format(paramtext,date,folder),A)
         B = np.empty((n,4))
         B[:,0] = T
         B[:,1:] = precomputed_positions.T
-        # np.savetxt("/home/cs4752/ros_ws/src/cs4752_proj2/{2}/{1}precomputed-positions-{0}.csv".format(paramtext,date,folder),B)
+        # np.savetxt("/home/cs4752/ros_ws/src/cs4752_proj3/{2}/{1}precomputed-positions-{0}.csv".format(paramtext,date,folder),B)
         loginfo("saved errors")
     
     def draw_on_plane(self, times, x_positions_velocities, y_positions_velocities, z_positions_velocities):
@@ -279,11 +279,11 @@ class JointActionServer():
         A = np.empty((n,4))
         A[:,0] = T
         A[:,1:] = actual_positions.T
-        # np.savetxt("/home/cs4752/ros_ws/src/cs4752_proj2/{2}/{1}actual-positions-{0}.csv".format(paramtext,date,folder),A)
+        # np.savetxt("/home/cs4752/ros_ws/src/cs4752_proj3/{2}/{1}actual-positions-{0}.csv".format(paramtext,date,folder),A)
         B = np.empty((n,4))
         B[:,0] = T
         B[:,1:] = precomputed_positions.T
-        # np.savetxt("/home/cs4752/ros_ws/src/cs4752_proj2/{2}/{1}precomputed-positions-{0}.csv".format(paramtext,date,folder),B)
+        # np.savetxt("/home/cs4752/ros_ws/src/cs4752_proj3/{2}/{1}precomputed-positions-{0}.csv".format(paramtext,date,folder),B)
         loginfo("saved errors")
 
     def get_manipulability(self):
@@ -431,6 +431,6 @@ def maximize_cosine_constrained(a,b,c,n2):
 
 if __name__ == '__main__':
     try: 
-        JointActionServer(limb_name='right')
+        JointActionServer()
     except rospy.ROSInterruptException:
         pass

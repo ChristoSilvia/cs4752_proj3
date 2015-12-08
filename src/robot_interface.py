@@ -4,8 +4,8 @@ import rospy
 import numpy as np
 from std_msgs.msg import *
 from geometry_msgs.msg import *
-from cs4752_proj2.srv import *
-from cs4752_proj2.msg import *
+from cs4752_proj3.srv import *
+from cs4752_proj3.msg import *
 from baxter_core_msgs.msg import *
 from baxter_core_msgs.srv import *
 from baxter_interface import *
