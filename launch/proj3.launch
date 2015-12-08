@@ -1,8 +1,5 @@
 <launch>
 	<param name="num_blocks" value="10" type="int"/>
-	<param name="configuration" value="stacked_descending" />
-        <!-- environment can be "symbolic", "simulator", "robot" -->
-	<param name="environment" value="simulator" />
 	<param name="limb" value="left" />
 
     <node name="controller" pkg="cs4752_proj3" type="controller.py" output="screen"></node>

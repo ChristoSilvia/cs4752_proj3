@@ -22,3 +22,8 @@ rosrun rviz rviz -d ~/ros_ws/src/cs4752_proj3/config/plane_frame.rviz
 rosrun tf2_ros static_transform_publisher 0 0 0 0 0 0 0 world base
 
 rosrun tf2_ros static_transform_publisher 1 1 1 0 0 0 1 base plane_frame
+
+killall -9 rosmaster
+killall -9 roscore
+
+rosrun rqt_reconfigure rqt_reconfigure
