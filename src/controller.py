@@ -85,7 +85,7 @@ class controller() :
         loginfo("PHASE: 1")
 
         def get_base_frame_points(self):
-            calibration_points = ["BOTTOM_MIDDLE", "BOTTOM_CORNER", "BALL_START"]
+            calibration_points = ["BOTTOM_MIDDLE", "BOTTOM_CORNER", "BALL_START", "TOP_CORNER"]
             point_pos = {}
             print calibration_points
             for point_name in calibration_points:
@@ -95,7 +95,7 @@ class controller() :
             return point_pos
 
         def get_kinect_frame_points(self):
-            calibration_points = ["BOTTOM_MIDDLE", "BOTTOM_CORNER", "BALL_START"]
+            calibration_points = ["BOTTOM_MIDDLE", "BOTTOM_CORNER", "BALL_START", "TOP_CORNER"]
 
             # img = cv2.imread('dave.jpg')
             # gray = cv2.cvtColor(img,cv2.COLOR_BGR2GRAY)
@@ -107,8 +107,11 @@ class controller() :
             # cv2.line(img,(x1,y1),(x2,y2),(0,255,0),2)
 
 
+            
+            # TODO use vision to find all corners
             hardcoded_points = [
                 np.array([0.5,0.0,1.0]),
+                np.array([0.0,0.0,1.0]),
                 np.array([0.0,0.0,1.0]),
                 np.array([0.4,-0.2,1.0])
             ]
@@ -119,7 +122,7 @@ class controller() :
             return point_pos
 
 
-        def get_kinect_transform(self, base_points, kinect_points):
+        def get_kinect_transform(base_points, kinect_points):
             shape = (1, len(base_points), 3)
             source = np.zeros(shape, np.float32)
             target = np.zeros(shape, np.float32)
@@ -135,9 +138,11 @@ class controller() :
             # print target
 
             retval, M, inliers = cv2.estimateAffine3D(source, target)
+            M = np.append(M,[[0,0,0,1]], axis=0)
+
             return M
 
-        def KinectToBasePoint(self, M, kinect_x,kinect_y,kinect_z):
+        def KinectToBasePoint(M, kinect_x,kinect_y,kinect_z):
             # self.transform_setup()
             # M = np.dot(self.kinect_translation, self.kinect_rotation)
 
@@ -146,7 +151,7 @@ class controller() :
             base_coords = base_coords[:3]/base_coords[3]
             base_coords.reshape((1, 3))
             # print "base_coords: {0}".format(base_coords)
-            return base_coords
+            return numpy_to_vector3(base_coords)
 
     
 
@@ -163,15 +168,16 @@ class controller() :
             kinect_points = get_kinect_frame_points(self)
             # print kinect_points
 
-            kinect_transform = get_kinect_transform(self, base_points, kinect_points)
+            kinect_transform = get_kinect_transform(base_points, kinect_points)
             print kinect_transform
             
             self.playing_field = {}
             for point_name in kinect_points:
                 kinect_pt = kinect_points[point_name]
                 base_pt = KinectToBasePoint(kinect_transform, kinect_pt[0],kinect_pt[1],kinect_pt[2])
-                playing_field[point_name] = 
-            # limits = PlayingFieldLimits()
+                self.playing_field[point_name] = base_pt
+            print self.playing_field
+
             if self.limb == 'left':
                 pass
             else:

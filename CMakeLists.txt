@@ -51,6 +51,8 @@ add_message_files(
   Path.msg
   PathArray.msg
   Trajectory.msg
+  BallPositionVelocity.msg
+  BlockerPosition.msg
   PlayingFieldPoints.msg
 )
 
