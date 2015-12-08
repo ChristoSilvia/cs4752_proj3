@@ -25,7 +25,7 @@ class torque_thrower :
 		rs = baxter_interface.RobotEnable(CHECK_VERSION)
 		init_state = rs.state().enabled
 		self.gripper = baxter_interface.Gripper(limb, CHECK_VERSION)
-		speed = -20
+		speed = -100000
 
 		joint_names = ["s0", "s1", "e0", "e1","w0", "w1", "w2"]
 		throw = [0,0,0,0,0, speed,0]
@@ -54,11 +54,11 @@ class torque_thrower :
 		current_joints = arm.joint_angles()
 		#deepcopy(current_joints)
 		release_angle = current_joints[limb+'_w1']
-		current_joints[limb+'_w1'] = 2
+		current_joints[limb+'_w1'] = 1.7#current_joints[limb+'_w1'] + .5
 		arm.move_to_joint_positions(current_joints)
-		rospy.sleep(2)
+		rospy.sleep(1)
 		#move arm all the way back!
-		current_angle = 2
+		current_angle = current_joints[limb+'_w1']
 
 
 		currenttime = rospy.get_time()
@@ -67,7 +67,7 @@ class torque_thrower :
 		released = False
 		rate = rospy.Rate(50)
 		oldz = 10000000
-		while current_angle > -1.2 :
+		while current_angle > -1.0 :
 			#releases when hand starts going up again
 			print current_angle
 			#print self.hand_pose.position.z
