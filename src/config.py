@@ -54,3 +54,15 @@ def numpy_to_joint_dict(limb, data):
 	for joint_name, joint_data in zip(joint_names, data):
 		joint_dict[ limb + "_" + joint_name ] = joint_data
 	return joint_dict
+
+def quaternion_to_numpy(q):
+	return np.array([q.x, q.y, q.z, q.w])
+
+def invert_unit_quaternion(q):
+        return np.array([-q[0], -q[1], -q[2], q[3]])
+
+def multiply_quaternion(q_0, q_1):
+	return np.array([ q_0[0]*q_1[3] + q_0[3]*q_1[0] - q_0[1]*q_1[2] + q_0[2]*q_1[1],
+                       q_0[1]*q_1[3] + q_0[3]*q_1[1] - q_0[0]*q_1[2] + q_0[2]*q_1[0],
+                       q_0[2]*q_1[3] + q_0[3]*q_1[2] - q_0[1]*q_1[0] + q_0[0]*q_1[1],
+                       q_0[3]*q_1[3] - q_0[0]*q_1[0] - q_0[1]*q_1[1] - q_0[2]*q_1[2] ])
