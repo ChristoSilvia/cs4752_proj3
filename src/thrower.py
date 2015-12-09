@@ -60,12 +60,13 @@ class thrower :
 		# release_pose = Pose()
 		# release_pose.position = release_pos
 		# release_pose.orientation = Quaternion(0.140770659119,0.989645234506,0.0116543447684,0.0254972076605)
+		# success = self.move_robot(MOVE_TO_POSE, self.limb, release_pose)
 		
 		# move to the release pose
-		# success = self.move_robot(MOVE_TO_POSE, self.limb, release_pose)
-		self.moveToThrow()
-		# recorded good throws:
-		# t.moveToThrow(w1=-0.7)
+		# self.moveToThrow()
+
+		# recorded good throw configs:
+		self.moveToThrow(w1=-0.7)
 		
 		# close the gripper
 		# self.move_robot(CLOSE_GRIPPER, self.limb, Pose())
@@ -76,39 +77,9 @@ class thrower :
 		#rospy.spin()
 
 	def moveToThrow(self, e1=2.222, w0=1.7357, w1=0.0000) :
-		e1_range = [1.57, 2.40] # elbow far or close to body
-		w0_range = [0.92, 2.50] # yaw for bank shots
-		w1_range = [-1.0, 0.5] # release pitch
-
-		close_pos = {
-			's0': -0.8747, 
-			's1': -0.8663,
-			'e0': 0.4621, 
-			'e1': 2.4093, 
-			'w0': 1.7357, 
-			'w1': 0.0000, 
-			'w2': 0.0000
-		}
-
-		middle_pos = {
-			's0': -0.8747, 
-			's1': -0.8663,
-			'e0': 0.4621, 
-			'e1': 2.222, 
-			'w0': 1.7357, 
-			'w1': 0.0000, 
-			'w2': 0.0000
-		}
-
-		far_pos = {
-			's0': -0.8747, 
-			's1': -0.8663,
-			'e0': 0.4621, 
-			'e1': 1.5727, 
-			'w0': 1.7357, 
-			'w1': 0.0000, 
-			'w2': 0.0000
-		}
+		e1_range = [1.57, 2.22, 2.40] # elbow far or close to body
+		w0_range = [0.92, 1.74, 2.50] # yaw for bank shots
+		w1_range = [-1.0, 0.00, 0.50] # release pitch
 
 		common_pos = {
 			's0': -0.8747, 
