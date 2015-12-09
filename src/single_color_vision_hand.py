@@ -41,6 +41,8 @@ class single_color_vision_hand:
 		self.cam_x_offset = 0.045                      # camera gripper offset
 		self.cam_y_offset = -0.01
 
+		self.ball_pub = rospy.Publisher("/ball_pose_hand",PoseStamped)
+
 		
 		#self.pixel_radius = 10
 		self.lastImageTime = time.time()
@@ -101,7 +103,7 @@ class single_color_vision_hand:
 		print distance_to_goal
 		print new_distance_to_goal
 		target_vec = target_vec/distance_to_goal
-		move_vel = target_vec * (-speed)
+		move_vel = target_vec * (speed)
 
 		currentTime = 0.0
 		new_v = Vector3(move_vel[0], move_vel[1], move_vel[2])
@@ -159,7 +161,7 @@ class single_color_vision_hand:
 		
 		toball = np.zeros(3)
 		toball[0] = (point[0] - cx) / fx
-		toball[1] = -(point[1] - cy) / fy
+		toball[1] = (point[1] - cy) / fy
 		toball[2] = 1
 		toball = toball / np.linalg.norm(toball) #normalize so we can then multiply by distance
 		
@@ -256,6 +258,7 @@ class single_color_vision_hand:
 			bpp = ball_pose.position
 			to_ball = np.array([bpp.x, bpp.y, bpp.z])
 			to_ball_dist = np.linalg.norm(to_ball)
+			print "GOING TO BALL"
 			print to_ball_dist
 			
 			#
@@ -269,13 +272,17 @@ class single_color_vision_hand:
 					frame_id = self.limb_name+"_hand_camera"
 					ball_pose_stamped.header.frame_id = frame_id
 					ball_pose_stamped.pose = ball_pose
-
+					#self.ball_pub.publish(ball_pose_stamped)
 					trans = self.tfBuffer.lookup_transform(frame_id, 'base', rospy.Time(0), rospy.Duration(1.0))
 					new_point = transformPoint(ball_pose.position, trans.transform)
+					ball_pose_stamped.pose.position = Vector3(new_point[0], new_point[1], new_point[2])
+					ball_pose_stamped.header.frame_id = 'base'
+					self.ball_pub.publish(ball_pose_stamped)
 					# trans = self.tfBuffer.lookup_transform('turtle2', 'turtle1', rospy.Time.now(), rospy.Duration(1.0))
 					print "current ball pose"
 					print new_point
-					self.move_arm_to_target(ball_pose, 1, .05, to_ball_dist)
+
+					#self.move_arm_to_target(ball_pose, 1, .05, to_ball_dist)
 					
 
 			except CvBridgeError, e:
