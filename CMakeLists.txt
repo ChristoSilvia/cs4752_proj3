@@ -66,6 +66,7 @@ add_service_files(
   SetNormalVec.srv
   SetParameters.srv
   BlockPoses.srv
+  GetCalibrationPoints.srv
 )
 
 ## Generate actions in the 'action' folder

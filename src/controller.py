@@ -36,11 +36,10 @@ class controller() :
         
         baxter_interface.RobotEnable(CHECK_VERSION).enable()
 
-
-        
         self.move_robot = createServiceProxy("move_robot", MoveRobot, "")
         # self.move_robot_plane_service = createService('move_robot_plane', MoveRobot, self.handle_move_robot_plane, "")
 
+        self.get_calibration_points = createServiceProxy("get_calibration_points", GetCalibrationPoints, "")
 
         # self.joint_action_server = createServiceProxy("move_end_effector_trajectory", JointAction, "left")
         # self.position_server = createServiceProxy("end_effector_position", EndEffectorPosition, "left")
@@ -90,7 +89,7 @@ class controller() :
     def PHASE1(self):
         loginfo("PHASE: 1")
 
-        def get_base_frame_points(self):
+        def get_base_frame_points():
             calibration_points = ["BOTTOM_MIDDLE", "BOTTOM_CORNER", "BALL_START", "TOP_CORNER"]
             point_pos = {}
             print calibration_points
@@ -100,46 +99,18 @@ class controller() :
                 point_pos[point_name] = np.array(self.arm.endpoint_pose()['position'])
             return point_pos
 
-        def get_kinect_frame_points(self):
+        def get_kinect_frame_points():
             calibration_points = ["BOTTOM_MIDDLE", "BOTTOM_CORNER", "BALL_START", "TOP_CORNER", "BOTTOM_B_NEAR_GOAL", "TOP_B_NEAR_GOAL"]
 
-            # img = cv2.imread('dave.jpg')
-            # gray = cv2.cvtColor(img,cv2.COLOR_BGR2GRAY)
-            # edges = cv2.Canny(gray,50,150,apertureSize = 3)
-            # minLineLength = 100
-            # maxLineGap = 10
-            # lines = cv2.HoughLinesP(edges,1,np.pi/180,100,minLineLength,maxLineGap)
-            # for x1,y1,x2,y2 in lines[0]:
-            # cv2.line(img,(x1,y1),(x2,y2),(0,255,0),2)
+            resp = self.get_calibration_points(calibration_points)
+            kinect_points = resp.points
+            print "kinect_points"
+            print kinect_points
 
-
-            
-            # TODO use vision to find all points
-            # indexes = {
-            #     "BOTTOM_CORNER": 0,
-            #     "BOTTOM_B_NEAR_GOAL": 1,
-            #     "BOTTOM_B_NEAR_MIDDLE": 2,
-            #     "BOTTOM_MIDDLE": 3,
-            #     "TOP_CORNER": 4,
-            #     "TOP_B_NEAR_GOAL": 5,
-            #     "TOP_B_NEAR_MIDDLE": 6,
-            #     "TOP_MIDDLE": 7,
-            #     "GOAL": 8,
-            #     "BALL_START": 9,
-            #     "BLOCK_START": 10
-            # }
-            hardcoded_points = [
-                np.array([0.5,0.0,1.0]),
-                np.array([0.0,0.0,1.0]),
-                np.array([0.0,0.0,1.0]),
-                np.array([0.0,0.0,1.0]),
-                np.array([0.0,0.0,1.0]),
-                np.array([0.4,-0.2,1.0])
-            ]
             point_pos = {}
             for i in range(0,len(calibration_points)):
                 point_name = calibration_points[i]
-                point_pos[point_name] = hardcoded_points[i]
+                point_pos[point_name] = vector3_to_numpy(kinect_points[i])
             return point_pos
 
 
@@ -174,16 +145,16 @@ class controller() :
             # print "base_coords: {0}".format(base_coords)
             return base_coords
 
-        def calibrate(self):
+        def calibrate():
             loginfo("Calibrating Playing Field and Kinect Frame")
             
-            base_points = get_base_frame_points(self)
+            base_points = get_base_frame_points()
             # print base_points
 
             prompt = "Press Enter when Arm is out of the way of the kinect's view of the table"
             cmd = raw_input(prompt)
 
-            kinect_points = get_kinect_frame_points(self)
+            kinect_points = get_kinect_frame_points()
             # print kinect_points
 
             kinect_transform = get_kinect_transform(base_points, kinect_points)
@@ -230,7 +201,7 @@ class controller() :
 
         self.calibrated_plane = False
         self.plane_norm = Vector3()
-        calibrate(self)
+        calibrate()
 
 
 
@@ -239,7 +210,7 @@ class controller() :
         loginfo("PHASE: 2")
 
 
-        def initBlockPositions(self):
+        def initBlockPositions():
             rospy.loginfo("Initializing block positions")
             self.initial_pose = Pose()
             pos = np.array(self.arm.endpoint_pose()['position'])
@@ -257,7 +228,7 @@ class controller() :
             return block_poses
 
 
-        block_poses = initBlockPositions(self)
+        block_poses = initBlockPositions()
         # resp = self.move_robot(req.action, req.limb, base_pose)
         green_B = deepcopy(self.initial_pose)
         B_center = (self.playing_field["BOTTOM_B_NEAR_GOAL"] + self.playing_field["TOP_B_NEAR_GOAL"]) / 2.
@@ -286,22 +257,22 @@ class controller() :
 
     def PHASE3(self):
 
-        def BLOCK(self):
+        def BLOCK():
             pass
 
-        def GRAB(self):
+        def GRAB():
             return True
             # return False
 
-        def CHECK_BLOCKS(self):
+        def CHECK_BLOCKS():
             # block_poses = self.get_block_poses(self.num_blocks)
             return True
             # return False
 
-        def MOVE_BLOCKS(self):
+        def MOVE_BLOCKS():
             pass
 
-        def THROW(self):
+        def THROW():
             pass
 
     
@@ -315,14 +286,14 @@ class controller() :
             if self.MODE == BLOCK :
                 loginfo("MODE: BLOCK")
                 # returns true when its sure the ball not going in the goal and still on our side
-                BLOCK(self)
+                BLOCK()
                 self.MODE = GRAB
 
                 
             elif self.MODE == GRAB :
                 loginfo("MODE: GRAB")
                 # returns true if grabbing was successful, false if the ball goes on the other side
-                grabbed = GRAB(self)
+                grabbed = GRAB()
                 if grabbed:
                     self.MODE = CHECK_BLOCKS
                 else:
@@ -333,7 +304,7 @@ class controller() :
                 loginfo("MODE: CHECK_BLOCKS")
                 # moves the arm out of the way and then uses single color vision to find the blocks
                 # returns true if the blocks are in the right place, false if they need to be moved
-                blocks_ok = CHECK_BLOCKS(self)
+                blocks_ok = CHECK_BLOCKS()
                 if blocks_ok:
                     self.MODE = THROW
                 else:
@@ -343,14 +314,14 @@ class controller() :
             elif self.MODE == MOVE_BLOCKS :
                 loginfo("MODE: MOVE_BLOCKS")
                 # returns after the the blocks have been moved
-                MOVE_BLOCKS(self)
+                MOVE_BLOCKS()
                 self.MODE = GRAB
 
                 
             elif self.MODE == THROW :
                 loginfo("MODE: THROW")
                 # returns after the throw
-                THROW(self)
+                THROW()
                 self.MODE = BLOCK
 
             self.rate.sleep()
@@ -446,9 +417,6 @@ class controller() :
         resp = self.move_robot(req.action, req.limb, base_pose)
         return MoveRobotResponse(resp.success)
 
-    def vector3_to_np(self,v):
-        return np.array([v.x,v.y,v.z])
-
     def handle_move_plane_traj(self, req):
         msg = Trajectory()
         msg.times = req.times
@@ -468,13 +436,13 @@ class controller() :
         for i in range(0,len(plane_traj_msg.positions)):
             pp = plane_traj_msg.positions[i]
             wp = self.PlaneToBasePoint(pp.x,pp.y,pp.z+zoffset)
-            pp = self.vector3_to_np(pp).reshape((1, 3))
+            pp = self.vector3_to_numpy(pp).reshape((1, 3))
             P = np.append(P, pp, axis=0)
             positions.append(Vector3(wp[0],wp[1],wp[2]))
 
             pv = plane_traj_msg.velocities[i]
             wv = self.PlaneToBaseDir(pv.x,pv.y,pv.z)
-            pv = self.vector3_to_np(pv).reshape((1, 3))
+            pv = self.vector3_to_numpy(pv).reshape((1, 3))
             V = np.append(V, pv, axis=0)
             velocities.append(Vector3(wv[0],wv[1],wv[2]))
 
