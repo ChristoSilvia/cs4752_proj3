@@ -7,6 +7,7 @@ Panels:
         - /Axes1
         - /Axes2
         - /Axes3
+        - /Pose1
         - /PoseArray1
       Splitter Ratio: 0.616601
     Tree Height: 567
@@ -334,15 +335,15 @@ Visualization Manager:
       Axes Radius: 0.1
       Class: rviz/Pose
       Color: 82; 255; 30
-      Enabled: false
+      Enabled: true
       Head Length: 0.2
       Head Radius: 0.1
       Name: Pose
       Shaft Length: 0.1
       Shaft Radius: 0.05
       Shape: Arrow
-      Topic: /test_pose
-      Value: false
+      Topic: /ball_pose_hand
+      Value: true
     - Arrow Length: 0.05
       Class: rviz/PoseArray
       Color: 255; 255; 0
@@ -374,22 +375,22 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/Orbit
-      Distance: 2.07456
+      Distance: 3.59507
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.06
         Stereo Focal Distance: 1
         Swap Stereo Eyes: false
         Value: false
       Focal Point:
-        X: 0.491875
-        Y: 0.0737168
-        Z: 0.421545
+        X: 0.330698
+        Y: 0.480642
+        Z: -0.393162
       Name: Current View
       Near Clip Distance: 0.01
-      Pitch: 0.144797
+      Pitch: 0.509797
       Target Frame: <Fixed Frame>
       Value: Orbit (rviz)
-      Yaw: 0.652002
+      Yaw: 2.23201
     Saved: ~
 Window Geometry:
   Displays:
@@ -407,5 +408,5 @@ Window Geometry:
   Views:
     collapsed: false
   Width: 1215
-  X: 1335
+  X: 1670
   Y: 14
