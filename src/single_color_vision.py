@@ -31,9 +31,18 @@ class single_color_vision:
 		self.pixel_radius = 10#2.1539 #radius in pixels at 1 meter of orange ball
 		self.lastImageTime = time.time()
 		self.imageWaitTime = .01
-		self.pinkhueVal = 163 #175 for hand, 168 for kinect, may need to continually tune
+
 		self.bluehueVal = 110
+		
+		self.pinkhueVal = 164
+		self.hue_range = 6
+
+		self.depthVal = 1.55
+		self.depthRange = .25
+			
 		self.pink_ball_pubs = 0
+		self.calibrated = False
+		self.prompt = True
 		#160 #pink
 
 		#topic for the raw image/camera/depth_registered/image_raw
@@ -84,9 +93,9 @@ class single_color_vision:
 
 		if self.depth_image != None :
 			#print "Got depth"
-			colorLower = 1.3
-			colorUpper = 3
-			mask = cv2.inRange(self.depth_image, colorLower, colorUpper)
+			depthLower = self.depthVal - self.depthRange
+			depthUpper = self.depthVal + self.depthRange
+			mask = cv2.inRange(self.depth_image, depthLower, depthUpper)
 			cv_image = cv2.bitwise_and(cv_image,cv_image,mask = mask)
 			#print "imshowing new code"
 			
@@ -182,9 +191,9 @@ class single_color_vision:
 
 	def findBlobsofHue(self, hueVal, lookfor, rgbimage) :
 
-		hue_range = 2
-		colorLower = (hueVal-hue_range, 70, 70)
-		colorUpper =(hueVal+hue_range, 255, 255)
+		
+		colorLower = (hueVal-self.hue_range, 70, 70)
+		colorUpper =(hueVal+self.hue_range, 255, 255)
 		blurred = cv2.GaussianBlur(rgbimage, (11, 11), 0)
 		hsv = cv2.cvtColor(blurred, cv2.COLOR_BGR2HSV)
 		mask = cv2.inRange(hsv, colorLower, colorUpper)
@@ -205,7 +214,7 @@ class single_color_vision:
 			c = max(cnts, key=cv2.contourArea)
 			#try :
 			#print type(cnts[0])
-			cnts.remove(c)
+			#cnts.remove(c) TODO fix how to delete numpy from list
 			#except :
 				#pass
 			
@@ -217,6 +226,82 @@ class single_color_vision:
 				cv2.circle(res, (int(x), int(y)), int(radius), (0,255,255), 2)
 
 		cv2.imshow(hsvstring,res)
+
+		if not self.calibrated:
+			if self.prompt :
+				print "Calibrating"
+				print "Click on the image, then..."
+				print "use W and S to change hue val"
+				print "use A and D to change hue range"
+				print ""
+				print "use I and K to change depth val"
+				print "use J and L to change depth range"
+				print ""
+				print "press any other key to get a new frame"
+				print "Press space when done"
+				self.prompt = False
+
+			key = cv2.waitKey(0) & 0xFF
+
+			# # if the space key is pressed, add the point to the dict
+			pinkmax = 175
+			pinkmin = 130
+			if key == ord("w"):
+				self.pinkhueVal = (self.pinkhueVal + .5) % pinkmax
+				if self.pinkhueVal < pinkmin :
+					self.pinkhueVal = pinkmin
+
+				print "Pink Hue Val"
+				print self.pinkhueVal
+
+			if key == ord("s"):
+				self.pinkhueVal = (self.pinkhueVal - .5) % pinkmax
+				if self.pinkhueVal < pinkmin :
+					self.pinkhueVal = pinkmin
+
+				print "Pink Hue Val"
+				print self.pinkhueVal
+			
+			if key == ord("a"):
+				self.hue_range -= .5
+				if self.hue_range < 1 :
+					self.hue_range = 1
+
+				print "Pink hue_range"
+				print self.hue_range
+			
+			if key == ord("d"):
+				self.hue_range += .5
+				if self.hue_range < 1 :
+					self.hue_range = 1
+
+				print "Pink hue_range"
+				print self.hue_range
+
+
+			if key == ord("i"):
+				self.depthVal += .05
+				print "depthVal"
+				print self.depthVal
+
+			if key == ord("k"):
+				self.depthVal -= .05
+				print "depthVal"
+				print self.depthVal
+			
+			if key == ord("j"):
+				self.depthRange -= .05
+				print "depthRange"
+				print self.depthRange
+			
+			if key == ord("l"):
+				self.depthRange += .05
+				print "depthRange"
+				print self.depthRange
+
+			if key == ord(" "):
+				self.calibrated = True
+
 		return blobsFound
 
 	def findBlocks(self, req) :
@@ -253,14 +338,7 @@ class single_color_vision:
 		initialtime = time.time()
 
 		#used for TUNING
-		"""pinkmax = 175
-		pinkmin = 155
-		self.pinkhueVal = (self.pinkhueVal + .1) % pinkmax
-		if self.pinkhueVal < pinkmin :
-			self.pinkhueVal = pinkmin
-
-		print "Pink Hue Val"
-		print self.pinkhueVal"""
+		
 		#self.findBlocks()
 
 		pink_balls = self.findBlobsofHue(self.pinkhueVal, 2, rgbimage)
