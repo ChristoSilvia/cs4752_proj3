@@ -43,6 +43,9 @@ def createService(service,srv_type,callback,limb):
 def vector3_to_numpy(v):
 	return np.array([v.x, v.y, v.z])
 
+def quaternion_to_numpy(q):
+	return np.array([q.x, q.y, q.z, q.w])
+
 def numpy_to_vector3(n):
 	return Vector3(n[0],n[1],n[2])
 

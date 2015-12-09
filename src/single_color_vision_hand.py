@@ -9,46 +9,61 @@ from std_msgs.msg import String, Header
 from geometry_msgs.msg import Pose, Quaternion, Point, PoseArray, PoseStamped
 from sensor_msgs.msg import Image, CameraInfo
 from cv_bridge import CvBridge, CvBridgeError
+from geometry_msgs.msg import *
 import numpy as np
 import math
+import tf2_ros
 from tf.transformations import *
 from config import *
+from baxter_core_msgs.msg import * #(SolvePositionIK, SolvePositionIKRequest)
+from baxter_core_msgs.srv import *
+from baxter_interface import *
+from baxter_pykdl import baxter_kinematics
+import baxter_interface
+from cs4752_proj3.srv import *
 
 
 #http://wiki.ros.org/cv_bridge/Tutorials/ConvertingBetweenROSImagesAndOpenCVImagesPython
 
 
 
-class single_color_vision:
+class single_color_vision_hand:
 
 	def __init__(self):
-		print "initializing single color vision object"
-		self.ball_pub = rospy.Publisher("/ball_pose",PoseStamped)
-		#self.block_pub = rospy.Publisher("/block_poses", PoseArray)
+		print "initializing single color vision object of HAND"
+
+		rs = baxter_interface.RobotEnable(CHECK_VERSION)
+		init_state = rs.state().enabled
+
+		self.limb_name = rospy.get_param("limb")
+		self.limb = Limb(self.limb_name)
+
+		self.cam_x_offset = 0.045                      # camera gripper offset
+		self.cam_y_offset = -0.01
+
 		
-		self.get_block_poses = createService("get_block_poses", BlockPoses, self.findBlocks, "")
-	
-		self.pixel_radius = 10#2.1539 #radius in pixels at 1 meter of orange ball
+		#self.pixel_radius = 10
 		self.lastImageTime = time.time()
 		self.imageWaitTime = .01
+
 		self.pinkhueVal = 175 #175 for hand, 163 for kinect, may need to continually tune
 		self.bluehueVal = 110
 		self.pink_ball_pubs = 0
-		#160 #pink
-		self.bridge = CvBridge()
 
-		#topic for the raw image/camera/depth_registered/image_raw
-		#try camera/rgb/image_color/compressed for greater efficiency
-		
-		self.image_sub = rospy.Subscriber("/camera/rgb/image_rect_color",Image,self.imagecallback, queue_size=1)
-		self.use_depth_filter = True
-		self.depth_image_sub = rospy.Subscriber("/camera/depth_registered/hw_registered/image_rect", Image, self.depthcallback, queue_size=1)
-		
-		self.depth_image = None
+		self.bridge = CvBridge()	
+
+
+		self.tfBuffer = tf2_ros.Buffer()
+		self.transform_listener = tf2_ros.TransformListener(self.tfBuffer)
+
+
+		self.image_sub = rospy.Subscriber("/cameras/"+self.limb_name+"_hand_camera/image",Image,self.imagecallback, queue_size=1)
+		self.traj_srv = createServiceProxy("move_end_effector_trajectory", JointAction, self.limb_name)
+
 		self.rgb_image = None
 		self.depth_image_set = False
 		
-		print "subscribed to /camera/rgb/image_rect_color"
+		print "subscribed to /cameras/left_hand_camera/image"
 		print "done initializing"
 
 		cv2.startWindowThread()
@@ -57,17 +72,54 @@ class single_color_vision:
 		cv2.startWindowThread()
 		cv2.namedWindow('HSV_Mask_BLUE_BLOCKS')
 
-		# Some interesting cv2 methods that could be used for segment finding and intersection
-		# cvtColor
-		# BILATERALfILTER
-		# CANNY
-		# houghlines
-		# arclength
-		# drawContors
 
 
 	#def cameraIntrinsicsCB (self, data) :
 	#	self.camera_matrix = data.k
+
+	def get_position(self):
+		return np.array(self.limb.endpoint_pose()['position']) 
+
+	def move_arm_to_target(self, target_pose, move_time, time_delta, distance_to_goal) :
+		print "Moving Arm to seen Target!"
+
+		initial_pos = self.get_position()
+
+		if distance_to_goal > .08 :
+			speed = .03
+		else :
+			speed = .015
+		traject = JointAction()
+		#traject.reference_frame = self.limb_name
+		times =[]
+		positions = []
+		velocities = []
+
+		target_vec = np.array([target_pose.position.x, target_pose.position.y,target_pose.position.z])
+		new_distance_to_goal = np.linalg.norm(target_vec)
+		print "Distance To Goal"
+		print distance_to_goal
+		print new_distance_to_goal
+		target_vec = target_vec/distance_to_goal
+		move_vel = target_vec * (-speed)
+
+		currentTime = 0.0
+		new_v = Vector3(move_vel[0], move_vel[1], move_vel[2])
+		while currentTime < move_time and distance_to_goal > .02:
+
+			velocities.append(new_v)
+			current_pos = initial_pos + (move_vel * currentTime)
+			new_p = Vector3(current_pos[0], current_pos[1], current_pos[2])
+			positions.append(new_p)
+			times.append(currentTime)
+			currentTime += time_delta
+
+
+		print "Starting Sending Trajectory Message"
+	
+		self.traj_srv(times, positions, velocities)
+		
+		print "Finished Sending Trajectory Message"
 
 
 	def imagecallback(self,data):
@@ -80,43 +132,11 @@ class single_color_vision:
 			cv_image = self.bridge.imgmsg_to_cv2(data, "bgr8")#rgba8
 		except CvBridgeError, e:
 			print e
-		#cv_image = data.image
-		#print "Image shape"
-		#print cv_image.shape
-		
-		#TODO fix depth image
-		if self.use_depth_filter :
-			if self.depth_image == None :
-				return
-			colorLower = 1.3
-			colorUpper = 3
-			mask = cv2.inRange(self.depth_image, colorLower, colorUpper)
-			cv_image = cv2.bitwise_and(cv_image,cv_image,mask = mask)
+
 
 		self.rgb_image = cv_image
 		self.findObjects(cv_image)
 		self.lastImageTime = time.time()
-
-
-	def depthcallback(self,data):
-		try:
-			self.depth_image = self.bridge.imgmsg_to_cv2(data, "passthrough")#rgba8
-		except CvBridgeError, e:
-			print e
-
-	def vecOut(self, point, width, height) :
-		xFOV = 63.38
-		yFOV = 48.25
-		cx = width /2
-		cy = height /2
-		fx = cx / np.tan((xFOV/2) * np.pi / 180)
-		fy = cy / np.tan((yFOV/2) * np.pi / 180)
-		
-		toball = np.zeros(3)
-		toball[0] = (point[0] - cx) / fx
-		toball[1] = -(point[1] - cy) / fy
-		toball[2] = 1
-		toball = toball / np.linalg.norm(toball) #normaliz
 
 
 	#creates an intrinsic camera matrix and uses the 
@@ -133,7 +153,7 @@ class single_color_vision:
 		xFOV = 63.38
 		yFOV = 48.25
 		cx = width /2
-		cy = height /2
+		cy = height /2 - height/5
 		fx = cx / np.tan((xFOV/2) * np.pi / 180)
 		fy = cy / np.tan((yFOV/2) * np.pi / 180)
 		
@@ -142,44 +162,16 @@ class single_color_vision:
 		toball[1] = -(point[1] - cy) / fy
 		toball[2] = 1
 		toball = toball / np.linalg.norm(toball) #normalize so we can then multiply by distance
-		distance = self.pixel_radius / radius
+		
+		pixel_radius_at_meter = 8.4
+	
+		distance = pixel_radius_at_meter / radius
 		toball = toball * distance
-
 		pose = Pose()
 		pose.position = Point(toball[0], toball[1], toball[2])
 		pose.orientation = Quaternion(0,0,0,1)
 		#print "FOUND Pink BALL!!!!"
 		#print toball
-		return pose
-
-	def projectDepth(self, point, distance, width, height) :
-
-		#print distance
-		#print point
-		#print width
-		#print height
-		#print "radius"
-		#print radius
-
-		xFOV = 63.38
-		yFOV = 48.25
-		cx = width /2
-		cy = height /2
-		fx = cx / np.tan((xFOV/2) * np.pi / 180)
-		fy = cy / np.tan((yFOV/2) * np.pi / 180)
-		
-		toball = np.zeros(3)
-		toball[0] = (point[0] - cx) / fx
-		toball[1] = -(point[1] - cy) / fy
-		toball[2] = 1
-		toball = toball / np.linalg.norm(toball) #normalize so we can then multiply by distance
-		#distance = self.pixel_radius / radius
-		toball = toball * distance
-
-		pose = Pose()
-		pose.position = Point(toball[0], toball[1], toball[2])
-		pose.orientation = Quaternion(0,0,0,1)
-		#print pose.position
 		return pose
 
 	def findBlobsofHue(self, hueVal, lookfor, rgbimage) :
@@ -207,14 +199,14 @@ class single_color_vision:
 			c = max(cnts, key=cv2.contourArea)
 			#try :
 			#print type(cnts[0])
-			cnts.remove(c)
+			#cnts.remove(c)
 			#except :
 				#pass
 			
 			((x, y), radius) = cv2.minEnclosingCircle(c)
 	 		lookfor = lookfor - 1
 			
-			if radius > 3:# only proceed if the radius meets a minimum size
+			if radius > 7:# only proceed if the radius meets a minimum size
 				blobsFound.append([x,y,radius])
 				cv2.circle(res, (int(x), int(y)), int(radius), (0,255,255), 2)
 
@@ -225,16 +217,8 @@ class single_color_vision:
 		blockList = self.findBlobsofHue(self.bluehueVal, req.num_blocks, self.rgb_image)
 		block_poses_list = []
 		for block in blockList :
-			if self.depth_image != None :
-				distance = self.depth_image[int(block[0]), int(block[1])]
-				if not math.isnan(distance) :
-					block_pose = self.projectDepth((int(block[0]), int(block[1])), distance, rgbimage.shape[1], rgbimage.shape[0])
-				else :
-					block_pose = self.project((int(block[0]), int(block[1])), int(block[2]), rgbimage.shape[1], rgbimage.shape[0])
-			else :
-				block_pose = self.project((int(block[0]), int(block[1])), int(block[2]), rgbimage.shape[1], rgbimage.shape[0])
+			block_pose = self.project((int(block[0]), int(block[1])), int(block[2]), rgbimage.shape[1], rgbimage.shape[0])
 			block_poses_list.append(block_pose)
-		
 		
 
 		block_poses = PoseArray()
@@ -265,44 +249,62 @@ class single_color_vision:
 		print self.pinkhueVal"""
 		#self.findBlocks()
 
-		pink_balls = self.findBlobsofHue(self.pinkhueVal, 2, rgbimage)
+		pink_balls = self.findBlobsofHue(self.pinkhueVal, 1, rgbimage)
 		if pink_balls != [] :
 			bi = pink_balls[0]
-			if self.depth_image != None :
-				distance = self.depth_image[int(bi[1]), int(bi[0])]
-				if not math.isnan(distance) :
-					ball_pose = self.projectDepth((int(bi[0]), int(bi[1])), distance, rgbimage.shape[1], rgbimage.shape[0])
-	 			else :
-	 				ball_pose = self.project((int(bi[0]), int(bi[1])), int(bi[2]), rgbimage.shape[1], rgbimage.shape[0])
-	 		else :
-	 			ball_pose = self.project((int(bi[0]), int(bi[1])), int(bi[2]), rgbimage.shape[1], rgbimage.shape[0])
+			ball_pose = self.project((int(bi[0]), int(bi[1])), int(bi[2]), rgbimage.shape[1], rgbimage.shape[0])
+			bpp = ball_pose.position
+			to_ball = np.array([bpp.x, bpp.y, bpp.z])
+			to_ball_dist = np.linalg.norm(to_ball)
+			print to_ball_dist
+			
+			#
 			try:
 				if ball_pose != None :
 					self.pink_ball_pubs += 1
-					base_pose_stamped = PoseStamped()
-					base_pose_stamped.header = Header()
-					base_pose_stamped.header.seq = self.pink_ball_pubs
-					base_pose_stamped.header.stamp = rospy.Time.now()
-					base_pose_stamped.header.frame_id = "kinect_frame"
-					base_pose_stamped.pose = ball_pose
-					self.ball_pub.publish(base_pose_stamped)
+					ball_pose_stamped = PoseStamped()
+					ball_pose_stamped.header = Header()
+					ball_pose_stamped.header.seq = self.pink_ball_pubs
+					ball_pose_stamped.header.stamp = rospy.Time(0)
+					frame_id = self.limb_name+"_hand_camera"
+					ball_pose_stamped.header.frame_id = frame_id
+					ball_pose_stamped.pose = ball_pose
+
+					trans = self.tfBuffer.lookup_transform(frame_id, 'base', rospy.Time(0), rospy.Duration(1.0))
+					new_point = transformPoint(ball_pose.position, trans.transform)
+					# trans = self.tfBuffer.lookup_transform('turtle2', 'turtle1', rospy.Time.now(), rospy.Duration(1.0))
+					print "current ball pose"
+					print new_point
+					self.move_arm_to_target(ball_pose, 1, .05, to_ball_dist)
+					
+
 			except CvBridgeError, e:
 				print e
 
 		
 		
 
+def transformPoint(p, transform):
+	T = translation_matrix(vector3_to_numpy(transform.translation))
+	R = quaternion_matrix(quaternion_to_numpy(transform.rotation))
+	M = np.dot(R,T)
+	v = np.array([p.x,p.y,p.z,1])
+	v = np.dot(M, v.T)
+	v = v[:3]/v[3]
+	# v.reshape((1, 3))
+	# print base
+	return v
 
 def main(args):
   
-  rospy.init_node('single_color_vision', anonymous=True)
-  print "initialized node single color vision"
-  ic = single_color_vision()
-  try:
-    rospy.spin()
-  except KeyboardInterrupt:
-    print "Shutting down"
-  cv2.destroyAllWindows()
+	rospy.init_node('single_color_vision_hand', anonymous=True)
+	print "initialized node single color vision"
+	ic = single_color_vision_hand()
+	try:
+		rospy.spin()
+	except KeyboardInterrupt:
+		print "Shutting down"
+	cv2.destroyAllWindows()
 
 if __name__ == '__main__':
-    main(sys.argv)
+	main(sys.argv)
