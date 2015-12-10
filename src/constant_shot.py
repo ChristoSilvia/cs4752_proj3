@@ -3,6 +3,7 @@
 import config
 import numpy as np
 import sys
+import matplotlib.pyplot as plt
 
 import rospy
 
@@ -27,19 +28,23 @@ class ConstantVelocityShooter:
         self.limb.move_to_joint_positions(hockey)
 
         self.ball_start = config.vector3_to_numpy(self.limb.endpoint_pose()['position'])
-        self.desired_orientation = np.array([-1.0/np.sqrt(2), 1.0/np.sqrt(2), 0, 0])
+        self.desired_orientation = config.quaternion_to_numpy(self.limb.endpoint_pose()['orientation'])
 
         self.current_position = self.ball_start
 
-        
+        ts = [] 
+        xs = []
+        zs = []
+        wzs = []
+
         self.field_length = 0.3
 
-        self.y_velocity = 0 #-1.5
+        self.y_velocity = -1.0
 
-        self.kp = np.array([ 20.0, 20.0, 5.0])
+        self.kp = np.array([ 20.0, 20.0, 30.0])
 
         while self.current_position[1] > self.ball_start[1] - self.field_length:
-           
+            ts.append(rospy.get_time())
             pose = self.limb.endpoint_pose() 
             self.current_position = config.vector3_to_numpy(pose['position'])
             self.current_orientation = config.quaternion_to_numpy(pose['orientation'])
@@ -48,8 +53,13 @@ class ConstantVelocityShooter:
             # linear error
             self.error[[0,1]] = self.current_position[[0,2]] - self.ball_start[[0,2]]
             # angular error
-            relative_orientation = config.multiply_quaternion(self.desired_orientation,
-                config.invert_unit_quaternion(self.current_orientation))
+            if np.dot(self.desired_orientation, self.current_orientation) > 0:
+                relative_orientation = config.multiply_quaternion(self.desired_orientation,
+                    config.invert_unit_quaternion(self.current_orientation))
+            else:
+                relative_orientation = config.multiply_quaternion(self.desired_orientation,
+                    -config.invert_unit_quaternion(self.current_orientation))
+            print(relative_orientation)
             relative_orientation_angle = 2.0 * np.arccos(relative_orientation[3])
             if np.abs(relative_orientation_angle) < 1e-6:
                 self.error[2] = 0.0
@@ -59,6 +69,10 @@ class ConstantVelocityShooter:
                 orientation_error = -relative_orientation_angle * relative_orientation_axis
                 self.error[2] = orientation_error[2]
 
+            # save errors
+            xs.append(self.error[0])
+            zs.append(self.error[1])
+            wzs.append(self.error[2])
  
             jacobian = np.array(self.limb_kin.jacobian())
             jacobian_pinv = np.linalg.pinv(jacobian)
@@ -71,6 +85,11 @@ class ConstantVelocityShooter:
 
             self.limb.set_joint_velocities(
                 config.numpy_to_joint_dict(self.limb_name, joint_velocities))
+       
+        plt.plot(ts, xs)
+        plt.plot(ts, zs)
+        plt.plot(ts, wzs)
+        plt.show()
 
 
 
