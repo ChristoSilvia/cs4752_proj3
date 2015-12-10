@@ -22,6 +22,8 @@ class Grabber():
         rospy.init_node('grabber')
         baxter_interface.RobotEnable(baxter_interface.CHECK_VERSION).enable()
 
+        rospy.Subscriber('/ZACH_TOPIC', Vector3, self.set_target)
+
         self.limb_name = limb_name        
         self.limb = baxter_interface.Limb(limb_name)
         self.joint_names = self.limb.joint_names()
@@ -43,7 +45,8 @@ class Grabber():
            config.invert_unit_quaternion(self.start_orientation)))
 
         # x oscillates at 5.3
-        self.kp = np.array([1.5, 1.5, 3.0, 2.3, 2.3, 20.0])
+#        self.kp = np.array([1.5, 1.5, 3.0, 2.3, 2.3, 20.0])
+        self.kp = np.array([1.5, 1.5, 3.0, 0.0, 0.0, 0.0])
         self.ki = np.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0])
         self.kd = np.array([0.3, 0.3, 2.0, 0.0, 0.0, 0.0])
         
@@ -152,11 +155,11 @@ class Grabber():
         plt.show()
 
     def set_target(self, message):
-        self.desired_position[0] = self.base_frame[0] + message.x
+        self.desired_position = config.vector3_to_numpy(message)
             
 
       
           
 
 if __name__ == '__main__':
-    Grabber('right') 
+    Grabber('left') 
