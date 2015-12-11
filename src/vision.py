@@ -161,13 +161,14 @@ class Vision:
 		)
 
 
-
+		self.transform_listener = tf.TransformListener()
 		self.bridge = CvBridge()	
 
 		if self.vision_type == "kinect":
 			self.rgb_topic = "/camera/rgb/image_rect_color"
 
 			self.depth_topic ="/camera/depth_registered/hw_registered/image_rect"
+			#self.depth_topic = "/camera/depth_registered/image"
 			self.depth_sub = rospy.Subscriber(self.depth_topic, Image, self.depth_callback, queue_size=1)
 			print "subscribed to %s" % self.depth_topic
 			self.depth_image = None
@@ -229,8 +230,8 @@ class Vision:
 		objs = self.findBlobsofHue(hsv_mask, 1 , self.rgb_image)
 		if len(objs) > 0:
 			screen_pub.publish(Vector3(objs[0][0],objs[0][1],objs[0][2]))
-		else:
-			screen_pub.publish(Vector3(0,0,0))
+		#else:	
+			#screen_pub.publish(Vector3(0,0,0))
 
 		if objs != [] :
 			bi = objs[0]
@@ -239,7 +240,8 @@ class Vision:
 				if math.isnan(distance) :
 					radius = bi[2]
 					distance = self.pixel_radius / radius
-					obj_pose = self.project((bi[0], bi[1]), distance, self.rgb_image.shape[1], self.rgb_image.shape[0])
+				obj_pose = self.project((bi[0], bi[1]), distance, self.rgb_image.shape[1], self.rgb_image.shape[0])
+				
 	 		else :
 	 			obj_pose = self.project((bi[0], bi[1]), self.rgb_image.shape[1], self.rgb_image.shape[0])
 			try:
@@ -261,14 +263,14 @@ class Vision:
 				print e
 
 	def depth_callback(self,data):
-		# print "got depth"
 		try:
 			self.depth_image = self.bridge.imgmsg_to_cv2(data, "passthrough")
 		except CvBridgeError, e:
 			print e
 
-	def findBlobsofHue(self, hsv_mask, num_blobs, self.rgb_image) :
+	def findBlobsofHue(self, hsv_mask, num_blobs, rgb_image) :
 		if self.vision_type == 'kinect' and self.depth_image == None:
+			print("Error: no depth image")
 			return []
 
 		# if hsv_mask_name == 'pink':
@@ -287,9 +289,9 @@ class Vision:
 			hsv_mask.m["V"]["max"]
 		)
 
-		if self.vision_type == "kinect":
+		if self.vision_type == "kinect" and self.depth_image == None:
 			mask = cv2.inRange(self.depth_image, hsv_mask.m["D"]["min"], hsv_mask.m["D"]["max"])
-			self.rgb_image = cv2.bitwise_and(self.rgb_image,self.rgb_image,mask = mask)
+			self.rgb_image = cv2.bitwise_and(self.rgb_image, rgb_image, mask = mask)
 
 		blurred = cv2.GaussianBlur(self.rgb_image, (11, 11), 0)
 		hsv = cv2.cvtColor(blurred, cv2.COLOR_BGR2HSV)
