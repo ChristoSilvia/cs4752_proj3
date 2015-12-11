@@ -1,6 +1,6 @@
 <launch>
 	<!-- <param name="num_blocks" value="3" type="int"/> -->
-	<!-- <param name="limb" value="left" /> -->
+	<param name="limb" value="left" />
 
 	<!-- <arg name="rviz" default="false"/> -->
 	<!-- <arg name="calibrate" default="false"/> -->

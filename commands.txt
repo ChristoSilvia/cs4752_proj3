@@ -29,5 +29,6 @@ killall -9 rosmaster
 killall -9 roscore
 
 rosrun rqt_reconfigure rqt_reconfigure
-
-rostopic pub /execute_vel geometry_msgs/Vector3 -r 100 0.05 0.0 0.0
+- camera
+    - driver
+         -depth_registration (check this)

@@ -41,7 +41,7 @@ class Blocker():
 
         print(self.base_frame)
 
-        self.desired_position = self.base_frame
+        self.desired_position = config.vector3_to_numpy(self.limb.endpoint_pose()['position'])
 
         rospy.Subscriber('/blocker_position', BlockerPosition, self.set_target)
 
@@ -60,38 +60,34 @@ class Blocker():
         start_time = rospy.get_time()
         last_time = start_time
         last_error = config.vector3_to_numpy(self.limb.endpoint_pose()['position']) - self.desired_position
-        while True:
-           try:
-                jacobian = np.array(self.limb_kin.jacobian())
-                jacobian_pinv = np.linalg.pinv(jacobian)
+        while not rospy.is_shutdown()  :
+            jacobian = np.array(self.limb_kin.jacobian())
+            jacobian_pinv = np.linalg.pinv(jacobian)
     
-                position = config.vector3_to_numpy(self.limb.endpoint_pose()['position'])
-                error = position - self.desired_position
+            position = config.vector3_to_numpy(self.limb.endpoint_pose()['position'])
+            error = position - self.desired_position
     
-                current_time = rospy.get_time()
-                time_interval = current_time - last_time
-                integral += error * time_interval
-                last_time = current_time
+            current_time = rospy.get_time()
+            time_interval = current_time - last_time
+            integral += error * time_interval
+            last_time = current_time
     
-                derivative = (error - last_error)/time_interval
-                last_error = error
+            derivative = (error - last_error)/time_interval
+            last_error = error
     
-                ts.append(current_time - start_time)
-                xs.append(error[0])
-                ys.append(error[1])
-                zs.append(error[2])
+            ts.append(current_time - start_time)
+            xs.append(error[0])
+            ys.append(error[1])
+            zs.append(error[2])
     
-                desired_twist = np.empty(6)
-                desired_twist[0:3] = - self.kp * error - self.ki * integral - self.kd * derivative
-                desired_twist[3:6] = np.zeros(3)
+            desired_twist = np.empty(6)
+            desired_twist[0:3] = - self.kp * error - self.ki * integral - self.kd * derivative
+            desired_twist[3:6] = np.zeros(3)
     
-                joint_velocities = np.dot(jacobian_pinv, desired_twist)
+            joint_velocities = np.dot(jacobian_pinv, desired_twist)
     
-                self.limb.set_joint_velocities(
-                    config.numpy_to_joint_dict(self.limb_name, joint_velocities))
-           except KeyboardInterrupt:
-                print("Plotting and Shutting Down")
-                break
+            self.limb.set_joint_velocities(
+                config.numpy_to_joint_dict(self.limb_name, joint_velocities))
 
 
         plt.plot(ts, xs, color="red")
