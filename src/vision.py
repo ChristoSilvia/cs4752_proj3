@@ -258,6 +258,7 @@ class Vision:
 					obj_image_pose.pose = obj_pose
 
 					obj_base_pose = self.transform_listener.transformPose('base', obj_image_pose)
+					obj_base_pose.header.stamp = rospy.Time.now()
 
 					base_pub.publish(obj_base_pose)
 			except CvBridgeError, e:
