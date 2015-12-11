@@ -17,7 +17,7 @@ import baxter_interface
 from baxter_pykdl import baxter_kinematics
 
 # us
-from cs4752_proj3.msg import BlockerPosition
+from cs4752_proj3.msg import BallPositionVelocity
 
 # goal
 goal_position = { 'left_w0': -0.08705,
@@ -30,7 +30,15 @@ goal_position = { 'left_w0': -0.08705,
 
 
 class Blocker():
-    def __init__(self, limb_name):
+    def __init__(self, limb_name, center_of_goal):
+        self.w = 0.6858
+        self.l = 1.3843
+        self.w_goal = 0.29845
+        self.gripper_offset = 0.04
+        self.center_of_goal = center_of_goal
+
+        self.y_velocity_cutoff = 5e-3
+
         self.limb_name = limb_name        
         self.limb = baxter_interface.Limb(limb_name)
         self.joint_names = self.limb.joint_names()
@@ -43,7 +51,7 @@ class Blocker():
 
         self.desired_position = config.vector3_to_numpy(self.limb.endpoint_pose()['position'])
 
-        rospy.Subscriber('/blocker_position', BlockerPosition, self.set_target)
+        rospy.Subscriber('/ball_position_velocity', BallPositionVelocity, self.set_target)
 
         # x oscillates at 5.3
         self.kp = np.array([2.65, 1.3, 0.9])
@@ -101,6 +109,55 @@ class Blocker():
         self.desired_position[0] = self.base_frame[0] + message.x
             
 
+    def handle_position_velocity_info(self, data):
+        print("\nRecieved data\n------------\n")
+        if self.limb_name == "left"
+            x = -(data.position.x - self.center_of_goal[0])
+            y = -(data.position.y - self.center_of_goal[1])
+        else:
+            x = data.position.x - self.center_of_goal[0])
+            y = data.position.y - self.center_of_goal[1])
+            
+
+        print("Ball Position: ({0},{1})".format(x,y))
+        if np.abs(data.velocity.y) > self.y_velocity_cutoff:
+            if self.limb_name == "left"
+                tan_theta = (-data.velocity.x) / (data.velocity.y)
+            else:
+                tan_theta = ( data.velocity.x) / (-data.velocity.y)
+            print("Ball Angle: {0}".format(tan_theta))
+            x_blocker = self.target_position(x, y, tan_theta)
+        else:
+            print("Ball is Stationary")
+            x_blocker = 0.0
+            print("")
+
+        if self.limb_name == "left":
+            self.desired_position[0] -= x_blocker
+        else:
+            self.desired_position[0] += x_blocker
+        print("Blocker x target: {0}".format(x_blocker))
+
+    def impact_location_on_far_wall(self, x, y, tan_theta):
+        unwalled_impact_location = x + y * tan_theta
+        print("Unwalled impact location: {0}".format(unwalled_impact_location))
+		
+        impact_location_sign = np.sign(unwalled_impact_location)
+		
+        limited_impact_location = np.abs(unwalled_impact_location) % 2*self.w
+
+        if limited_impact_location < 0.5*self.w:
+            return impact_location_sign * limited_impact_location
+        elif limited_impact_location < 1.5*self.w:
+            return impact_location_sign * ( self.w - limited_impact_location)
+        else:
+            return impact_location_sign * ( limited_impact_location - 2.0*self.w)
+
+    def target_position(self, x, y, tan_theta):
+        impact_location = self.impact_location_on_far_wall(x, y, tan_theta)
+        return np.clip(-0.5*self.w_goal + self.gripper_offset, 
+                        0.5*self.w_goal - self.gripper_offset, 
+                        impact_location)
       
           
 
