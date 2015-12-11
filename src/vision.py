@@ -134,6 +134,8 @@ class Vision:
 
 		self.limb_name = rospy.get_param("/limb")
 
+		rospy.set_param("/camera/driver/depth_registration", True)
+
 		self.lastImageTime = time.time()
 		self.imageWaitTime = .01
 
@@ -151,7 +153,7 @@ class Vision:
 		self.blue_kinect_mask = HSVMask(
 			"blue kinect",
 			{'H': {'max': 140.0, 'min': 100.0}, 'S': {'max': 220.0, 'min': 60.0}, 'D': {'max': 1.75, 'min': 1.4}, 'V': {'max': 180.0, 'min': 0.0}},
-			calibrated=True
+			calibrated=False
 		)
 		self.blue_hand_mask = HSVMask(
 			"blue hand",
@@ -348,7 +350,7 @@ class Vision:
 		toball = toball * distance
 
 		pose = Pose()
-		pose.position = Point(toball[0], toball[1], toball[2])
+		pose.position = Point(toball[0], -toball[1], toball[2])
 		pose.orientation = Quaternion(0,0,0,1)
 		#print "FOUND Pink BALL!!!!"
 		#print toball
