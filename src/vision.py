@@ -139,23 +139,23 @@ class Vision:
 		self.imageWaitTime = .01
 
 		self.pink_kinect_mask = HSVMask(
-			"pink",
+			"pink kinect",
 			{'H': {'max': 168.0, 'min': 154.5}, 'S': {'max': 255.0, 'min': 70.0}, 'D': {'max': 1.7, 'min': 1.4}, 'V': {'max': 255.0, 'min': 70.0}},
 			calibrated=True
 		)
 		self.pink_hand_mask = HSVMask(
-			"pink",
+			"pink hand",
 			{'H': {'max': 180.0, 'min': 169.0}, 'S': {'max': 255.0, 'min': 100.0}, 'D': {'max': 1.7, 'min': 1.4}, 'V': {'max': 255, 'min': 20.0}},
 			calibrated=True
 		)
 
 		self.blue_kinect_mask = HSVMask(
-			"blue",
+			"blue kinect",
 			{'H': {'max': 140.0, 'min': 100.0}, 'S': {'max': 220.0, 'min': 60.0}, 'D': {'max': 1.75, 'min': 1.4}, 'V': {'max': 180.0, 'min': 0.0}},
 			calibrated=True
 		)
 		self.blue_hand_mask = HSVMask(
-			"blue",
+			"blue hand",
 			{'H': {'max': 140.0, 'min': 100.0}, 'S': {'max': 220.0, 'min': 60.0}, 'D': {'max': 1.75, 'min': 1.4}, 'V': {'max': 180.0, 'min': 0.0}},
 			calibrated=True
 		)
@@ -179,18 +179,22 @@ class Vision:
 		print "subscribed to %s" % self.rgb_topic
 		self.rgb_image = None
 
-		self.pink_pub = rospy.Publisher("/found_pink_%s" % self.vision_type, Vector3, queue_size=1)
-		self.blue_pub = rospy.Publisher("/found_blue_%s" % self.vision_type, Vector3, queue_size=1)
+		self.pink_screen_pub = rospy.Publisher("/found_pink_%s" % self.vision_type, Vector3, queue_size=1)
+		self.blue_screen_pub = rospy.Publisher("/found_blue_%s" % self.vision_type, Vector3, queue_size=1)
+		
+		self.pink_base_pub = rospy.Publisher("/ball_pose", PoseStamped, queue_size=1)
+		self.blue_base_pub = rospy.Publisher("/block_pose", PoseStamped, queue_size=1)
 		
 		self.rate = rospy.Rate(30)
+		self.pixel_radius = 10#2.1539 #radius in pixels at 1 meter of orange ball
 		
-		print "done initializing"
-
 		cv2.startWindowThread()
 		cv2.namedWindow('%s %s vision' % ("pink", self.vision_type))
 
 		cv2.startWindowThread()
 		cv2.namedWindow('%s %s vision' % ("blue", self.vision_type))
+
+		print "done initializing"
 
 		rospy.spin()
 
@@ -209,17 +213,52 @@ class Vision:
 			pink_mask = self.pink_hand_mask
 			blue_mask = self.blue_hand_mask
 		
-		pinks = self.findBlobsofHue(pink_mask, 1 , self.rgb_image)
-		if len(pinks) > 0:
-			self.pink_pub.publish(Vector3(pinks[0][0],pinks[0][1],pinks[0][2]))
-		else:
-			self.pink_pub.publish(Vector3(0,0,0))
+		self.find_project_publish(pink_mask)
+		self.find_project_publish(blue_mask)
 
-		blues = self.findBlobsofHue(blue_mask, 1 , self.rgb_image)
-		if len(blues) > 0:
-			self.blue_pub.publish(Vector3(blues[0][0],blues[0][1],blues[0][2]))
+	def find_project_publish(self, hsv_mask):
+		screen_pub = None
+		base_pub = None
+		if hsv_mask.name.split(" ")[0] == 'blue':
+			screen_pub = self.blue_screen_pub
+			base_pub = self.blue_base_pub
+		elif hsv_mask.name.split(" ")[0] == 'pink':
+			screen_pub = self.pink_screen_pub
+			base_pub = self.pink_base_pub
+
+		objs = self.findBlobsofHue(hsv_mask, 1 , self.rgb_image)
+		if len(objs) > 0:
+			screen_pub.publish(Vector3(objs[0][0],objs[0][1],objs[0][2]))
 		else:
-			self.blue_pub.publish(Vector3(0,0,0))
+			screen_pub.publish(Vector3(0,0,0))
+
+		if objs != [] :
+			bi = objs[0]
+			if self.depth_image != None :
+				distance = self.depth_image[int(bi[1]), int(bi[0])]
+				if math.isnan(distance) :
+					radius = bi[2]
+					distance = self.pixel_radius / radius
+					obj_pose = self.project((bi[0], bi[1]), distance, self.rgb_image.shape[1], self.rgb_image.shape[0])
+	 		else :
+	 			obj_pose = self.project((bi[0], bi[1]), self.rgb_image.shape[1], self.rgb_image.shape[0])
+			try:
+				if obj_pose != None :
+					image_frame = ""
+					if self.vision_type == "kinect":
+						image_frame = "/camera_depth_optical_frame"
+					elif self.vision_type == "hand":
+						image_frame = "/%s_hand_camera" % self.limb_name
+					obj_image_pose = PoseStamped()
+					obj_image_pose.header.frame_id = image_frame
+					obj_image_pose.header.stamp = self.transform_listener.getLatestCommonTime(image_frame, 'base')
+					obj_image_pose.pose = obj_pose
+
+					obj_base_pose = self.transform_listener.transformPose('base', obj_image_pose)
+
+					self.base_pub.publish(obj_base_pose)
+			except CvBridgeError, e:
+				print e
 
 	def depth_callback(self,data):
 		# print "got depth"
@@ -228,7 +267,7 @@ class Vision:
 		except CvBridgeError, e:
 			print e
 
-	def findBlobsofHue(self, hsv_mask, num_blobs, rgbimage) :
+	def findBlobsofHue(self, hsv_mask, num_blobs, self.rgb_image) :
 		if self.vision_type == 'kinect' and self.depth_image == None:
 			return []
 
@@ -250,13 +289,13 @@ class Vision:
 
 		if self.vision_type == "kinect":
 			mask = cv2.inRange(self.depth_image, hsv_mask.m["D"]["min"], hsv_mask.m["D"]["max"])
-			rgbimage = cv2.bitwise_and(rgbimage,rgbimage,mask = mask)
+			self.rgb_image = cv2.bitwise_and(self.rgb_image,self.rgb_image,mask = mask)
 
-		blurred = cv2.GaussianBlur(rgbimage, (11, 11), 0)
+		blurred = cv2.GaussianBlur(self.rgb_image, (11, 11), 0)
 		hsv = cv2.cvtColor(blurred, cv2.COLOR_BGR2HSV)
 		mask = cv2.inRange(hsv, colorLower, colorUpper)
 
-		res = cv2.bitwise_and(rgbimage,rgbimage, mask = mask)
+		res = cv2.bitwise_and(self.rgb_image,self.rgb_image, mask = mask)
 
 		blobsFound = []
 		cnts = cv2.findContours(mask.copy(), cv2.RETR_EXTERNAL,cv2.CHAIN_APPROX_SIMPLE)[-2]
@@ -271,8 +310,7 @@ class Vision:
 				blobsFound.append([x,y,radius])
 				cv2.circle(res, (int(x), int(y)), int(radius), (0,255,255), 2)
 
-		window_name = '%s %s vision' % (hsv_mask.name, self.vision_type)
-		# print window_name
+		window_name = '%s vision' % hsv_mask.name
 		cv2.imshow(window_name, res)
 
 		if not hsv_mask.calibrated:
@@ -280,6 +318,38 @@ class Vision:
 
 		return blobsFound
 
+	#creates an intrinsic camera matrix and uses the 
+	#position and size of the ball to determine pose
+	#relative to the camera, (using kinect specs)
+	def project(self, point, distance, width, height) :
+		#print point
+		#print width
+		#print height
+		#print "radius"
+		#print radius
+		#print "Not using depth"
+
+		xFOV = 63.38
+		yFOV = 48.25
+		cx = width /2
+		cy = height /2
+		fx = cx / np.tan((xFOV/2) * np.pi / 180)
+		fy = cy / np.tan((yFOV/2) * np.pi / 180)
+		
+		toball = np.zeros(3)
+		toball[0] = (point[0] - cx) / fx
+		toball[1] = -(point[1] - cy) / fy
+		toball[2] = 1
+		toball = toball / np.linalg.norm(toball)
+		
+		toball = toball * distance
+
+		pose = Pose()
+		pose.position = Point(toball[0], toball[1], toball[2])
+		pose.orientation = Quaternion(0,0,0,1)
+		#print "FOUND Pink BALL!!!!"
+		#print toball
+		return pose
 if __name__ == '__main__':
 	try:
 		v = Vision()
