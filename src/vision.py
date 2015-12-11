@@ -183,8 +183,8 @@ class Vision:
 		self.pink_screen_pub = rospy.Publisher("/found_pink_%s" % self.vision_type, ScreenObj, queue_size=1)
 		self.blue_screen_pub = rospy.Publisher("/found_blue_%s" % self.vision_type, ScreenObj, queue_size=1)
 		
-		self.pink_base_pub = rospy.Publisher("/ball_pose", PoseStamped, queue_size=1)
-		self.blue_base_pub = rospy.Publisher("/block_pose", PoseStamped, queue_size=1)
+		self.pink_base_pub = rospy.Publisher("/ball_pose_%s" % self.vision_type, PoseStamped, queue_size=1)
+		self.blue_base_pub = rospy.Publisher("/block_pose_%s" % self.vision_type, PoseStamped, queue_size=1)
 		
 		self.rate = rospy.Rate(30)
 		self.pixel_radius = 10#2.1539 #radius in pixels at 1 meter of orange ball
@@ -290,7 +290,7 @@ class Vision:
 			hsv_mask.m["V"]["max"]
 		)
 
-		if self.vision_type == "kinect" and self.depth_image == None:
+		if self.vision_type == "kinect" and self.depth_image != None:
 			mask = cv2.inRange(self.depth_image, hsv_mask.m["D"]["min"], hsv_mask.m["D"]["max"])
 			self.rgb_image = cv2.bitwise_and(self.rgb_image, rgb_image, mask = mask)
 
@@ -309,7 +309,7 @@ class Vision:
 			((x, y), radius) = cv2.minEnclosingCircle(c)
 	 		num_blobs = num_blobs - 1
 			
-			if radius > 7:# only proceed if the radius meets a minimum size
+			if radius > 3:# only proceed if the radius meets a minimum size
 				blobsFound.append([x,y,radius])
 				cv2.circle(res, (int(x), int(y)), int(radius), (0,255,255), 2)
 
