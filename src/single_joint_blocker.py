@@ -76,7 +76,7 @@ class Blocker():
         self.desired_joint_angles = config.joint_dict_to_numpy(self.limb_name, self.limb.joint_angles())
 	self.desired_joint_angles[5] -= 0.23
 
-        rospy.Subscriber('/ball_position_velocity', BallPositionVelocity, self.set_target)
+        rospy.Subscriber('/ball_position_velocity', BallPositionVelocity, self.handle_position_velocity_info)
 
         # x oscillates at 5.
         self.kp = np.array([2.5, 2.5, 2.5, 2.5, 2.5, 11.0, 2.5])
@@ -115,10 +115,6 @@ class Blocker():
         plt.plot(ts, xs, color="red")
         plt.grid(True)
         plt.show()
-
-    def set_target(self, message):
-        print("Recieved New Target: {0}".format(message.x))
-        self.desired_position[0] = self.base_frame[0] + message.x
             
 
     def handle_position_velocity_info(self, data):
@@ -178,7 +174,9 @@ if __name__ == '__main__':
     baxter_interface.RobotEnable(baxter_interface.CHECK_VERSION).enable()
     print("Initialized node 'blocker'")
 
-    arm_name = sys.argv[1]
+    arm_name = rospy.get_param("limb")
+    if arm_name is None:
+        arm_name = sys.argv[1]
     assert (arm_name == "left" or arm_name == "right")
     print("Initializing Blocker for {0} arm".format(arm_name))
     Blocker(arm_name, np.array([0.59, 0.63, -0.08])) 

@@ -17,7 +17,7 @@ import baxter_interface
 from baxter_pykdl import baxter_kinematics
 
 # us
-from cs4752_proj3.msg import BallPositionVelocity
+from cs4752_proj3.msg import *
 
 # goal
 goal_position = { 'left_w0': -0.08705,
@@ -51,7 +51,8 @@ class Blocker():
 
         self.desired_position = config.vector3_to_numpy(self.limb.endpoint_pose()['position'])
 
-        rospy.Subscriber('/ball_position_velocity', BallPositionVelocity, self.set_target)
+        rospy.Subscriber('/blocker_position', BlockerPosition, self.set_target)
+        # rospy.Subscriber('/ball_position_velocity', BallPositionVelocity, self.set_target)
 
         # x oscillates at 5.3
         self.kp = np.array([2.65, 1.3, 0.9])
@@ -111,17 +112,17 @@ class Blocker():
 
     def handle_position_velocity_info(self, data):
         print("\nRecieved data\n------------\n")
-        if self.limb_name == "left"
+        if self.limb_name == "left":
             x = -(data.position.x - self.center_of_goal[0])
             y = -(data.position.y - self.center_of_goal[1])
         else:
-            x = data.position.x - self.center_of_goal[0])
-            y = data.position.y - self.center_of_goal[1])
+            x = data.position.x - self.center_of_goal[0]
+            y = data.position.y - self.center_of_goal[1]
             
 
         print("Ball Position: ({0},{1})".format(x,y))
         if np.abs(data.velocity.y) > self.y_velocity_cutoff:
-            if self.limb_name == "left"
+            if self.limb_name == "left":
                 tan_theta = (-data.velocity.x) / (data.velocity.y)
             else:
                 tan_theta = ( data.velocity.x) / (-data.velocity.y)
@@ -166,7 +167,9 @@ if __name__ == '__main__':
     baxter_interface.RobotEnable(baxter_interface.CHECK_VERSION).enable()
     print("Initialized node 'blocker'")
 
-    arm_name = sys.argv[1]
+    arm_name = rospy.get_param("limb")
+    if arm_name is None:
+        arm_name = sys.argv[1]
     assert (arm_name == "left" or arm_name == "right")
     print("Initializing Blocker for {0} arm".format(arm_name))
-    Blocker(arm_name) 
+    Blocker(arm_name, [0.59, 0.63, -0.08]) 

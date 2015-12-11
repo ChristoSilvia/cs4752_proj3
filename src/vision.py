@@ -117,7 +117,7 @@ class HSVMask:
 
 		if key == ord(" "):
 			self.calibrated = True
-			print "############## Calibrated Mask ##############"
+			print "############## Calibrated %s Mask ##############" % self.name
 			print self.m
 			print "#############################################"
 
@@ -144,25 +144,25 @@ class Vision:
 			{'H': {'max': 168.0, 'min': 154.5}, 'S': {'max': 255.0, 'min': 70.0}, 'D': {'max': 1.7, 'min': 1.4}, 'V': {'max': 255.0, 'min': 70.0}},
 			calibrated=True
 		)
-		self.pink_hand_mask = HSVMask(
-			"pink hand",
-			{'H': {'max': 180.0, 'min': 169.0}, 'S': {'max': 255.0, 'min': 100.0}, 'D': {'max': 1.7, 'min': 1.4}, 'V': {'max': 255, 'min': 20.0}},
+		self.blue_kinect_mask = HSVMask(
+			"blue kinect",
+			{'H': {'max': 140.0, 'min': 100.0}, 'S': {'max': 180.0, 'min': 83.0}, 'D': {'max': 1.7, 'min': 1.4}, 'V': {'max': 255, 'min': 115.0}},
 			calibrated=True
 		)
 
-		self.blue_kinect_mask = HSVMask(
-			"blue kinect",
-			{'H': {'max': 140.0, 'min': 100.0}, 'S': {'max': 220.0, 'min': 60.0}, 'D': {'max': 1.75, 'min': 1.4}, 'V': {'max': 180.0, 'min': 0.0}},
-			calibrated=False
+		self.pink_hand_mask = HSVMask(
+			"pink hand",
+			{'H': {'max': 180.0, 'min': 169.0}, 'S': {'max': 255.0, 'min': 100.0}, 'V': {'max': 255, 'min': 20.0}},
+			calibrated=True
 		)
 		self.blue_hand_mask = HSVMask(
 			"blue hand",
-			{'H': {'max': 140.0, 'min': 100.0}, 'S': {'max': 220.0, 'min': 60.0}, 'D': {'max': 1.75, 'min': 1.4}, 'V': {'max': 180.0, 'min': 0.0}},
+			{'H': {'max': 140.0, 'min': 100.0}, 'S': {'max': 220.0, 'min': 50.0}, 'V': {'max': 252.0, 'min': 50.0}},
 			calibrated=True
 		)
 
 
-		self.transform_listener = tf.TransformListener()
+		self.transform_lisetner = tf.TransformListener()
 		self.bridge = CvBridge()	
 
 		if self.vision_type == "kinect":
@@ -198,6 +198,10 @@ class Vision:
 		cv2.namedWindow('%s %s vision' % ("blue", self.vision_type))
 
 		print "done initializing"
+
+		self.kinect_transform
+		while not rospy.is_shutdown():
+			if 
 
 		rospy.spin()
 

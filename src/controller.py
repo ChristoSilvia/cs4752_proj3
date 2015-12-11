@@ -14,7 +14,6 @@ import baxter_interface
 from baxter_interface import *
 from baxter_pykdl import baxter_kinematics
 import tf
-import tf2_ros
 from tf.transformations import *
 from copy import deepcopy
 import cv2
@@ -41,12 +40,14 @@ class controller() :
 
         self.get_calibration_points = createServiceProxy("get_calibration_points", GetCalibrationPoints, "")
 
+        self.limb_name = rospy.get_param("limb")
+        # self.grasp = createServiceProxy("grasp", MoveRobot, self.limb_name)
+
         # self.joint_action_server = createServiceProxy("move_end_effector_trajectory", JointAction, "left")
         # self.position_server = createServiceProxy("end_effector_position", EndEffectorPosition, "left")
 
         # self.get_block_poses = createServiceProxy("get_block_poses", BlockPoses, "")
 
-        # self.tf_br = tf2_ros.TransformBroadcaster()
 
         #Generate the figure
         # self.fig = plt.figure()
@@ -54,150 +55,32 @@ class controller() :
         # self.ax.hold(True)
         # plt.show()
 
+
         self.block_size = .045
-        self.limb = rospy.get_param("limb")
-        self.arm = baxter_interface.Limb(self.limb)
+        self.arm = baxter_interface.Limb(self.limb_name)
         self.num_blocks = rospy.get_param("num_blocks")
         self.PHASE = 1
 
         self.playing_field = {}
         self.rate = rospy.Rate(1)
-        loginfo("Starting GameLoop")
+        loginfo("Starting GameLoop on %s arm" % self.limb_name)
         self.GameLoop()
 
-        rospy.spin()
-
-    # def sendTransform(self):
-    #     self.transform_setup()        
-
-    #     t = TransformStamped()
-    #     t.header.stamp = rospy.Time.now()
-    #     t.header.frame_id = "base"
-    #     t.child_frame_id = "plane_frame"
-    #     T = translation_from_matrix(self.plane_translation)
-    #     t.transform.translation.x = T[0]
-    #     t.transform.translation.y = T[1]
-    #     t.transform.translation.z = T[2]
-    #     q = quaternion_from_matrix(self.plane_rotation)
-    #     t.transform.rotation.x = q[0]
-    #     t.transform.rotation.y = q[1]
-    #     t.transform.rotation.z = q[2]
-    #     t.transform.rotation.w = q[3]
-
-    #     self.tf_br.sendTransform(t)
+    
 
     def PHASE1(self):
         loginfo("PHASE: 1")
 
-        def get_base_frame_points():
-            calibration_points = ["BOTTOM_MIDDLE", "BOTTOM_CORNER", "BALL_START", "TOP_CORNER"]
-            point_pos = {}
-            print calibration_points
-            for point_name in calibration_points:
-                prompt = "Press Enter when Arm is on the %s" % point_name
-                cmd = raw_input(prompt)
-                point_pos[point_name] = np.array(self.arm.endpoint_pose()['position'])
-            return point_pos
-
-        def get_kinect_frame_points():
-            calibration_points = ["BOTTOM_MIDDLE", "BOTTOM_CORNER", "BALL_START", "TOP_CORNER", "BOTTOM_B_NEAR_GOAL", "TOP_B_NEAR_GOAL"]
-
-            resp = self.get_calibration_points(calibration_points)
-            kinect_points = resp.points
-            print "kinect_points"
-            print kinect_points
-
-            point_pos = {}
-            for i in range(0,len(calibration_points)):
-                point_name = calibration_points[i]
-                point_pos[point_name] = vector3_to_numpy(kinect_points[i])
-            return point_pos
-
-
-        def get_kinect_transform(base_points, kinect_points):
-            shape = (1, len(base_points), 3)
-            source = np.zeros(shape, np.float32)
-            target = np.zeros(shape, np.float32)
-
-            count = 0
-            for point_name in base_points:
-                kinect_pt = list(kinect_points[point_name])
-                source[0][count] = kinect_pt
-                base_pt = list(base_points[point_name])
-                target[0][count] = base_pt
-                count += 1
-            # print source
-            # print target
-
-            retval, M, inliers = cv2.estimateAffine3D(source, target)
-            M = np.append(M,[[0,0,0,1]], axis=0)
-
-            return M
-
-        def KinectToBasePoint(M, kinect_x,kinect_y,kinect_z):
-            # self.transform_setup()
-            # M = np.dot(self.kinect_translation, self.kinect_rotation)
-
-            kinect_coords = np.array([kinect_x,kinect_y,kinect_z,1])
-            base_coords = np.dot(M, kinect_coords.T)
-            base_coords = base_coords[:3]/base_coords[3]
-            base_coords.reshape((1, 3))
-            # print "base_coords: {0}".format(base_coords)
-            return base_coords
 
         def calibrate():
             loginfo("Calibrating Playing Field and Kinect Frame")
+            calibration_points = ["BOTTOM_MIDDLE", "BOTTOM_CORNER", "TOP_MIDDLE", "TOP_CORNER"]
             
-            base_points = get_base_frame_points()
-            # print base_points
-
-            prompt = "Press Enter when Arm is out of the way of the kinect's view of the table"
-            cmd = raw_input(prompt)
-
-            kinect_points = get_kinect_frame_points()
-            # print kinect_points
-
-            kinect_transform = get_kinect_transform(base_points, kinect_points)
-            print kinect_transform
             
-            self.playing_field = {}
-            for point_name in kinect_points:
-                kinect_pt = kinect_points[point_name]
-                base_pt = KinectToBasePoint(kinect_transform, kinect_pt[0],kinect_pt[1],kinect_pt[2])
-                self.playing_field[point_name] = base_pt
-            print self.playing_field
-
-            # vec1 = point_pos[1] - point_pos[0]
-            # vec2 = point_pos[2] - point_pos[0]
-            
-            # self.kinect_norm = np.cross(vec1, vec2)
-            # self.set_plane_normal_srv(Vector3(self.plane_norm[0], self.plane_norm[1], self.plane_norm[2]))
-            # # plane_origin = np.average(point_pos, axis=0)
-            # plane_origin = point_pos[0]
-
-            # self.plane_translation = translation_matrix(plane_origin)
-            
-            # x_plane = vec1/np.linalg.norm(vec1)
-            # y_plane = np.cross(self.plane_norm, vec1)
-            # y_plane = y_plane/np.linalg.norm(y_plane)
-            # z_plane = self.plane_norm/np.linalg.norm(self.plane_norm)
-            # #need rotation to make norm the z vector
-            # self.plane_rotation = np.array([x_plane, y_plane, z_plane]).T
-
-            # self.plane_rotation = np.append(self.plane_rotation,[[0,0,0]],axis=0)
-            # self.plane_rotation = np.append(self.plane_rotation,[[0],[0],[0],[1]],axis=1)
-            
-            print "#################################"
-            print "Finished Calibrating Playing Field and Kinect Frame"
-            print "kinect_translation"
-            print translation_from_matrix(kinect_transform)
-            print "kinect_rotation"
-            print euler_from_matrix(kinect_transform)
-            print "#################################"
 
             self.calibrated_plane = True
 
-            # self.sendTransform()
+            self.sendTransform(kinect_transform)
 
         self.calibrated_plane = False
         self.plane_norm = Vector3()
@@ -476,3 +359,7 @@ class controller() :
 if __name__ == '__main__':
     limb = 'left'
     ct = controller(limb)
+    try:
+        rospy.spin()
+    except KeyboardInterrupt:
+        print "Shutting down"

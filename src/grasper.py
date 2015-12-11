@@ -32,6 +32,8 @@ class grasper:
 
 		self.limb_name = rospy.get_param("limb")
 
+		self.gripper = Gripper(self.limb_name)
+
 		self.limb = Limb(self.limb_name)
 
 		self.transform_listener = tf.TransformListener()
@@ -41,7 +43,7 @@ class grasper:
 		self.blue_sub = rospy.Subscriber("/found_blue_hand", ScreenObj, self.blue_callback, queue_size=1)
 		self.pink_sub = rospy.Subscriber("/found_pink_hand", ScreenObj, self.pink_callback, queue_size=1)
 		
-		# self.ball_pub = rospy.Publisher("/ball_pose_hand",PoseStamped)
+        grasp_service = createService('grasp', MoveRobot, self.grasp, self.limb_name)
 
 		self.execute_pub = rospy.Publisher("/execute_vel", Vector3)
 
@@ -53,21 +55,20 @@ class grasper:
 
 		print "done initializing"
 
-		# self.grasp("blue")
-		self.grasp("pink")
+		self.grasp("blue")
+		# self.grasp("pink")
 
 	def get_position(self):
 		return np.array(self.limb.endpoint_pose()['position'])
 
 	def pink_callback(self, data):
-		# print data
 		self.objs["pink"] = data
 
 	def blue_callback(self, data):
 		self.objs["blue"] = data
 
-	def grasp(self, color) :
-
+	def grasp(self, req) :
+		color = req.limb
 		grasped = False
 		self.move_robot(OPEN_GRIPPER, self.limb_name, Pose())
 
@@ -89,7 +90,7 @@ class grasper:
 				actual_screen_coords = np.array([bi.x,bi.y])
 
 				offset_x = 30.0
-				offset_y = -130.0
+				offset_y = -140.0
 				if color == 'blue':
 					offset_y = -120.0
 					offset_x = 30.0
@@ -124,26 +125,34 @@ class grasper:
 				if self.get_position()[2] < grasp_z:
 					self.move_robot(CLOSE_GRIPPER, self.limb_name, Pose())
 					grasped = True
-					# print "##################################"
-					# print "closed"
-					# print "##################################"
 					break
+				elif self.limb.endpoint_effort()['force'].z < -6.0:
+					up_vec = Vector3(0,0,max_speed*.5)
+					self.moveVel(up_vec)
 				else:
 					self.moveVel(base_vel.vector)
 
 			else:
 				# move upwards if ball not found
-				if self.get_position()[2] < .6:
+				if self.get_position()[2] < .55:
 					up_vec = Vector3(0,0,max_speed*.5)
 					self.moveVel(up_vec)
 
 			self.rate.sleep()
 
+		success = self.confirmGrasp()
+		print "success"
+		print success
+		if not success:
+			self.moveVel(up_vec)
+			self.grasp(color)
+
 		cv2.destroyAllWindows()
 
+	def confirmGrasp(self):
+		return self.gripper.gripping()
+
 	def moveVel(self, v):
-		# pass
-		# print v
 		self.execute_pub.publish(v)
 
 def main(args):

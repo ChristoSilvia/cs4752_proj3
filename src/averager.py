@@ -21,7 +21,7 @@ class DetermineVelocities:
 
         self.pub = rospy.Publisher('/ball_position_velocity', BallPositionVelocity, 
             queue_size=10) 
-        rospy.Subscriber('/ball_pose', PoseStamped, self.handle_data)
+        rospy.Subscriber('/ball_pose_kinect', PoseStamped, self.handle_data)
 
         # plt.ion()
         # plt.show()
@@ -39,16 +39,17 @@ class DetermineVelocities:
         rospy.spin()
 
     def handle_data(self, data):
-        print("Recieved Data")
+        #print("Recieved Data")
         t = data.header.stamp.secs + 1e-9*data.header.stamp.nsecs
         position = np.array([data.pose.position.x, data.pose.position.y])
-        print("At t={0} ball is at {1},{2}".format(t, data.pose.position.x, data.pose.position.y))
+        #print("At t={0} ball is at {1},{2}".format(t, data.pose.position.x, data.pose.position.y))
 
         if self.previous_position is None:
             self.previous_position = position
             self.previous_time = t
         else:
-            v = (data_point - self.previous_position)/(t - self.previous_time)
+            v = (position - self.previous_position)/(t - self.previous_time)
+            #print("Est Ball Velocity: {0},{1}".format(v[0], v[1]))
             self.previous_position = position
             self.previous_time = t
             self.pub.publish(BallPositionVelocity(t, data.pose.position, Point(v[0], v[1], 0)))
