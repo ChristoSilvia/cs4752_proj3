@@ -35,4 +35,5 @@ if __name__ == '__main__':
     rospy.init_node('execute_velocity')
     baxter_interface.RobotEnable(baxter_interface.CHECK_VERSION).enable()
 
-    Translator('right')    
+    limb_name = rospy.get_param('limb')
+    Translator(limb_name)    

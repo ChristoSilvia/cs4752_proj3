@@ -8,12 +8,13 @@ from cs4752_proj3.msg import BlockerPosition, BallPositionVelocity
 
 
 class ImpactLocationOnFarWall():
-    def __init__(self, origin):
+    def __init__(self, center_of_goal, limb_name):
         self.w = 0.6858
         self.l = 1.3843
         self.w_goal = 0.29845
         self.gripper_offset = 0.04
-        self.origin = origin
+        self.center_of_goal = center_of_goal
+        self.limb_name = limb_name
 
         self.y_velocity_cutoff = 1e-2
 
@@ -30,12 +31,20 @@ class ImpactLocationOnFarWall():
 
     def handle_position_velocity_info(self, data):
         print("\nRecieved data\n------------\n")
-        x = data.position.x - self.origin[0]
-        y = data.position.y - self.origin[1]
+        if self.limb_name == "left"
+            x = -(data.position.x - self.center_of_goal[0])
+            y = -(data.position.y - self.center_of_goal[1])
+        else:
+            x = data.position.x - self.center_of_goal[0])
+            y = data.position.y - self.center_of_goal[1])
+            
 
         print("Ball Position: ({0},{1})".format(x,y))
         if np.abs(data.velocity.y) > self.y_velocity_cutoff:
-            tan_theta = data.velocity.x / data.velocity.y
+            if self.limb_name == "left"
+                tan_theta = (-data.velocity.x) / (data.velocity.y)
+            else:
+                tan_theta = ( data.velocity.x) / (-data.velocity.y)
             print("Ball Angle: {0}".format(tan_theta))
             x_blocker = self.target_position(x, y, tan_theta)
         else:
@@ -68,4 +77,4 @@ class ImpactLocationOnFarWall():
                         impact_location)
 
 if __name__ == '__main__':
-    ImpactLocationOnFarWall(np.array([0.5853055, 0.7119757, -0.04525]))
+    ImpactLocationOnFarWall(np.array([0.5853055, 0.7119757, -0.04525]), "left")
