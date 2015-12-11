@@ -56,6 +56,12 @@ def numpy_to_joint_dict(limb, data):
 		] = data[i]
 	return joint_dict
 
+def joint_dict_to_numpy(limb, joint_dict):
+	numpy_array = np.empty(7)
+	for i, joint_name in enumerate(joint_names):
+		numpy_array[i] = joint_dict[limb + "_" + joint_name]
+	return numpy_array
+
 def quaternion_to_numpy(q):
 	return np.array([q.x, q.y, q.z, q.w])
 
@@ -95,3 +101,10 @@ def mirror_left_arm_joints(new_pos):
 					new_pos[key] = joint_middle[limbless_key] - (new_pos[key] - joint_middle[limbless_key])
 
 	return new_pos
+
+def null(a, rtol=1e-5):
+    # http://stackoverflow.com/questions/19820921/a-simple-matlab-like-way-of-finding-the-null-space-of-a-small-matrix-in-numpy
+    u, s, v = np.linalg.svd(a)
+    rank = (s > rtol*s[0]).sum()
+    return rank, v[rank:].T.copy()
+
