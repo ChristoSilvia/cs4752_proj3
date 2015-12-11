@@ -5,6 +5,7 @@ import rospy
 import cv2
 import time
 from cs4752_proj3.srv import *
+from cs4752_proj3.msg import *
 from std_msgs.msg import String, Header
 from geometry_msgs.msg import Pose, Quaternion, Point, PoseArray, PoseStamped
 from sensor_msgs.msg import Image, CameraInfo
@@ -20,7 +21,6 @@ from baxter_core_msgs.srv import *
 from baxter_interface import *
 from baxter_pykdl import baxter_kinematics
 import baxter_interface
-from cs4752_proj3.srv import *
 
 class grasper:
 
@@ -30,10 +30,7 @@ class grasper:
 		rs = baxter_interface.RobotEnable(CHECK_VERSION)
 		init_state = rs.state().enabled
 
-		try:
-			self.limb_name = rospy.get_param("limb")
-		except:
-			self.limb_name = 'right'
+		self.limb_name = rospy.get_param("limb")
 
 		self.limb = Limb(self.limb_name)
 
@@ -41,8 +38,8 @@ class grasper:
 
 		self.move_robot = createServiceProxy("move_robot", MoveRobot, "")
 
-		self.blue_sub = rospy.Subscriber("/found_blue_hand", Vector3, self.blue_callback, queue_size=1)
-		self.pink_sub = rospy.Subscriber("/found_pink_hand", Vector3, self.pink_callback, queue_size=1)
+		self.blue_sub = rospy.Subscriber("/found_blue_hand", ScreenObj, self.blue_callback, queue_size=1)
+		self.pink_sub = rospy.Subscriber("/found_pink_hand", ScreenObj, self.pink_callback, queue_size=1)
 		
 		# self.ball_pub = rospy.Publisher("/ball_pose_hand",PoseStamped)
 
@@ -54,18 +51,16 @@ class grasper:
 		self.objs['pink'] = None
 		self.objs['blue'] = None
 
-		self.rgb_image_shape = (600, 960, 3)
-
-
 		print "done initializing"
 
-		self.grasp("blue")
-		# self.grasp("pink")
+		# self.grasp("blue")
+		self.grasp("pink")
 
 	def get_position(self):
 		return np.array(self.limb.endpoint_pose()['position'])
 
 	def pink_callback(self, data):
+		# print data
 		self.objs["pink"] = data
 
 	def blue_callback(self, data):
@@ -76,11 +71,11 @@ class grasper:
 		grasped = False
 		self.move_robot(OPEN_GRIPPER, self.limb_name, Pose())
 
-		grasp_z = -0.075
+		grasp_z = -0.072
 
 		while not grasped and not rospy.is_shutdown():
 
-			max_speed = .12
+			max_speed = .15
 			max_error = 330
 			max_distance = 1.0
 
@@ -89,23 +84,24 @@ class grasper:
 			except:
 				bi = None
 
-			if bi != None and bi.z != 0 :
+			if bi != None and bi.radius != 0 :
 
 				actual_screen_coords = np.array([bi.x,bi.y])
 
-				offset_x = 0.0
-				offset_y = 0.0
+				offset_x = 30.0
+				offset_y = -130.0
 				if color == 'blue':
 					offset_y = -120.0
+					offset_x = 30.0
 
 				desired_screen_coords = np.array([
-					self.rgb_image_shape[1]/2. + offset_x,
-					self.rgb_image_shape[0]/2. + offset_y
+					bi.img_height/2. + offset_x,
+					bi.img_width/2. + offset_y
 				])
 
 				error_screen =  actual_screen_coords - desired_screen_coords
 
-				radius = bi.z
+				radius = bi.radius
 				pixel_radius_at_meter = 8.4
 				distance = pixel_radius_at_meter / radius
 
@@ -128,6 +124,9 @@ class grasper:
 				if self.get_position()[2] < grasp_z:
 					self.move_robot(CLOSE_GRIPPER, self.limb_name, Pose())
 					grasped = True
+					# print "##################################"
+					# print "closed"
+					# print "##################################"
 					break
 				else:
 					self.moveVel(base_vel.vector)

@@ -4,7 +4,6 @@ import sys
 import rospy
 import cv2
 import time
-from cs4752_proj3.srv import *
 from std_msgs.msg import String, Header
 from geometry_msgs.msg import Pose, Quaternion, Point, PoseArray, PoseStamped
 from sensor_msgs.msg import Image, CameraInfo
@@ -20,6 +19,7 @@ from baxter_core_msgs.srv import *
 from baxter_interface import *
 from baxter_pykdl import baxter_kinematics
 import baxter_interface
+from cs4752_proj3.msg import *
 from cs4752_proj3.srv import *
 
 class HSVMask:
@@ -124,16 +124,15 @@ class HSVMask:
 class Vision:
 
 	def __init__(self):
-		self.vision_type = rospy.get_param("vision_type")
+
+		self.vision_type = rospy.get_namespace()[1:-1]
 
 		rospy.init_node("%s_vision" % self.vision_type)
+		
 
 		print "Initializing %s Vision" % self.vision_type
 
-		try:
-			self.limb_name = rospy.get_param("limb")
-		except:
-			self.limb_name = 'right'
+		self.limb_name = rospy.get_param("/limb")
 
 		self.lastImageTime = time.time()
 		self.imageWaitTime = .01
@@ -171,17 +170,18 @@ class Vision:
 			#self.depth_topic = "/camera/depth_registered/image"
 			self.depth_sub = rospy.Subscriber(self.depth_topic, Image, self.depth_callback, queue_size=1)
 			print "subscribed to %s" % self.depth_topic
-			self.depth_image = None
 
 		elif self.vision_type == "hand":
 			self.rgb_topic = "/cameras/"+self.limb_name+"_hand_camera/image"
 
 		self.rgb_sub = rospy.Subscriber(self.rgb_topic,Image,self.rgb_callback, queue_size=1)
 		print "subscribed to %s" % self.rgb_topic
-		self.rgb_image = None
 
-		self.pink_screen_pub = rospy.Publisher("/found_pink_%s" % self.vision_type, Vector3, queue_size=1)
-		self.blue_screen_pub = rospy.Publisher("/found_blue_%s" % self.vision_type, Vector3, queue_size=1)
+		self.rgb_image = None
+		self.depth_image = None
+
+		self.pink_screen_pub = rospy.Publisher("/found_pink_%s" % self.vision_type, ScreenObj, queue_size=1)
+		self.blue_screen_pub = rospy.Publisher("/found_blue_%s" % self.vision_type, ScreenObj, queue_size=1)
 		
 		self.pink_base_pub = rospy.Publisher("/ball_pose", PoseStamped, queue_size=1)
 		self.blue_base_pub = rospy.Publisher("/block_pose", PoseStamped, queue_size=1)
@@ -229,26 +229,27 @@ class Vision:
 
 		objs = self.findBlobsofHue(hsv_mask, 1 , self.rgb_image)
 		if len(objs) > 0:
-			screen_pub.publish(Vector3(objs[0][0],objs[0][1],objs[0][2]))
-		#else:	
-			#screen_pub.publish(Vector3(0,0,0))
+			screen_pub.publish(ScreenObj(objs[0][0],objs[0][1],objs[0][2],self.rgb_image.shape[0],self.rgb_image.shape[1]))
+		else:	
+			screen_pub.publish(ScreenObj(0,0,0,0,0))
 
 		if objs != [] :
 			bi = objs[0]
+			radius = bi[2]
 			if self.depth_image != None :
 				distance = self.depth_image[int(bi[1]), int(bi[0])]
 				if math.isnan(distance) :
-					radius = bi[2]
 					distance = self.pixel_radius / radius
 				obj_pose = self.project((bi[0], bi[1]), distance, self.rgb_image.shape[1], self.rgb_image.shape[0])
 				
 	 		else :
-	 			obj_pose = self.project((bi[0], bi[1]), self.rgb_image.shape[1], self.rgb_image.shape[0])
+				distance = self.pixel_radius / radius
+				obj_pose = self.project((bi[0], bi[1]), distance, self.rgb_image.shape[1], self.rgb_image.shape[0])
 			try:
 				if obj_pose != None :
 					image_frame = ""
 					if self.vision_type == "kinect":
-						image_frame = "/camera_depth_optical_frame"
+						image_frame = "/camera_rgb_optical_frame"
 					elif self.vision_type == "hand":
 						image_frame = "/%s_hand_camera" % self.limb_name
 					obj_image_pose = PoseStamped()
@@ -258,7 +259,7 @@ class Vision:
 
 					obj_base_pose = self.transform_listener.transformPose('base', obj_image_pose)
 
-					self.base_pub.publish(obj_base_pose)
+					base_pub.publish(obj_base_pose)
 			except CvBridgeError, e:
 				print e
 

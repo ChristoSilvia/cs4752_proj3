@@ -1,6 +1,7 @@
 <launch>
 	<!-- <param name="num_blocks" value="3" type="int"/> -->
-	<param name="limb" value="right" />
+	<param name="limb" value="left" />
+	<arg name="calibrate" default="false"/>
 
 	<!-- <arg name="rviz" default="false"/> -->
 	<!-- <arg name="calibrate" default="false"/> -->
@@ -9,8 +10,10 @@
     <!-- <node name="hand_camera_calibration" pkg="cs4752_proj3" type="hand_camera_calibration.py" output="screen"></node> -->
     <!-- <node name="single_color_vision" pkg="cs4752_proj3" type="single_color_vision.py"></node> -->
 
-    <param name="vision_type" value="hand" />
-    <node name="hand_vision" pkg="cs4752_proj3" type="vision.py" output="screen"></node>
+    <node ns="hand" name="vision" pkg="cs4752_proj3" type="vision.py" output="screen"></node>
+    <!-- <node ns="kinect" name="vision" pkg="cs4752_proj3" type="vision.py" output="screen"></node> -->
+
+    <node unless="$(arg calibrate)" pkg="tf" type="static_transform_publisher" name="kinect_tf" args="0.03 0.42 1.40 0.706757866675 -0.706757866675 0.0222107607464 0.0222107607464 /camera_rgb_optical_frame /base 300"/>
 
     <node name="robot_interface2" pkg="cs4752_proj3" type="robot_interface.py" output="screen"></node>
 	<node name="joint_action_server" pkg="cs4752_proj3" type="joint_action_server.py" output="screen"></node>

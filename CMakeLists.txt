@@ -54,6 +54,7 @@ add_message_files(
   BallPositionVelocity.msg
   BlockerPosition.msg
   PlayingFieldPoints.msg
+  ScreenObj.msg
 )
 
 ## Generate services in the 'srv' folder
