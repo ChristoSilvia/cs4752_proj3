@@ -29,10 +29,10 @@ class kinect_calibration:
 		self.transform_listener = tf.TransformListener()
 		self.tf_br = tf.TransformBroadcaster()
 
-		req = GetCalibrationPoints()
+		req = CalibrateKinect()
 		req.calibration_points = ["BOTTOM_MIDDLE", "BOTTOM_CORNER", "TOP_MIDDLE", "TOP_CORNER"]
 		
-		get_calibration_points = createService("get_calibration_points", GetCalibrationPoints, self.calibrate, "")
+		calibrate_kinect = createService("calibrate_kinect", CalibrateKinect, self.calibrate, "")
 		self.calibrate(req)
 
 		self.ts = None
@@ -77,7 +77,6 @@ class kinect_calibration:
 		t.transform.rotation.w = q[3]
 
 		return t
-
 
 	def onmouse(self,event,x,y,flags,params):
 		if event == cv2.EVENT_LBUTTONDOWN:

@@ -38,7 +38,7 @@ class controller() :
         self.move_robot = createServiceProxy("move_robot", MoveRobot, "")
         # self.move_robot_plane_service = createService('move_robot_plane', MoveRobot, self.handle_move_robot_plane, "")
 
-        self.get_calibration_points = createServiceProxy("get_calibration_points", GetCalibrationPoints, "")
+        self.calibrate_kinect = createServiceProxy("calibrate_kinect", CalibrateKinect, "")
 
         self.limb_name = rospy.get_param("limb")
         # self.grasp = createServiceProxy("grasp", MoveRobot, self.limb_name)
@@ -48,13 +48,11 @@ class controller() :
 
         # self.get_block_poses = createServiceProxy("get_block_poses", BlockPoses, "")
 
-
         #Generate the figure
         # self.fig = plt.figure()
         # self.ax = self.fig.add_subplot(111)
         # self.ax.hold(True)
         # plt.show()
-
 
         self.block_size = .045
         self.arm = baxter_interface.Limb(self.limb_name)
@@ -66,8 +64,6 @@ class controller() :
         loginfo("Starting GameLoop on %s arm" % self.limb_name)
         self.GameLoop()
 
-    
-
     def PHASE1(self):
         loginfo("PHASE: 1")
 
@@ -76,17 +72,7 @@ class controller() :
             loginfo("Calibrating Playing Field and Kinect Frame")
             calibration_points = ["BOTTOM_MIDDLE", "BOTTOM_CORNER", "TOP_MIDDLE", "TOP_CORNER"]
             
-            
-
-            self.calibrated_plane = True
-
-            self.sendTransform(kinect_transform)
-
-        self.calibrated_plane = False
-        self.plane_norm = Vector3()
-        calibrate()
-
-
+            res = self.calibrate_kinect(calibration_points)
 
     
     def PHASE2(self):

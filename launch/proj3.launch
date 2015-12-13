@@ -5,7 +5,7 @@
 	<arg name="rviz" default="false"/>
 	<arg name="calibrate" default="false"/>
 
-    <node name="controller" pkg="cs4752_proj3" type="controller.py" output="screen"></node>
+    <!-- <node name="controller" pkg="cs4752_proj3" type="controller.py" output="screen"></node> -->
     <node name="kinect_calibration" pkg="cs4752_proj3" type="kinect_calibration.py" output="screen"></node>
     <!-- <node name="single_color_vision" pkg="cs4752_proj3" type="single_color_vision.py"></node> -->
     <node name="robot_interface2" pkg="cs4752_proj3" type="robot_interface.py" output="screen"></node>
