@@ -162,7 +162,7 @@ class Vision:
 		)
 
 
-		self.transform_lisetner = tf.TransformListener()
+		self.transform_listener = tf.TransformListener()
 		self.bridge = CvBridge()	
 
 		if self.vision_type == "kinect":
