@@ -15,7 +15,6 @@ class DetermineVelocities:
         print("Initialized node DetermineVelocities")
 
         self.max_past_data_entries = 10
-#        self.past_positions = []
         self.previous_position = None
         self.previous_time = None
 
@@ -53,25 +52,6 @@ class DetermineVelocities:
             self.previous_position = position
             self.previous_time = t
             self.pub.publish(BallPositionVelocity(t, data.pose.position, Point(v[0], v[1], 0)))
-
-        # if len(self.past_positions) == 0:
-        #     self.past_positions = [ data_point for i in xrange(self.max_past_data_entries)]
-        # else:
-        #     self.past_positions = self.past_positions[1:] + [data_point]
-        #     coeffsx = np.polyfit([ self.past_positions[i][0]
-        #             for i in xrange(self.max_past_data_entries)],
-        #         [ self.past_positions[i][1]
-        #             for i in xrange(self.max_past_data_entries)], 1)
-        #     vx = coeffsx[0]
-        #     coeffsy = np.polyfit([ self.past_positions[i][0]
-        #             for i in xrange(self.max_past_data_entries)],
-        #         [ self.past_positions[i][2] 
-        #             for i in xrange(self.max_past_data_entries)], 1)
-        #     vy = coeffsy[0]
-        #     self.pub.publish(BallPositionVelocity(t, data.pose.position, Point(vx, vy, 0.0)))
-        #     print("Moving with speed {0},{1}".format(vx, vy))
-
-
 
 if __name__ == '__main__':
     DetermineVelocities()
