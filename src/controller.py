@@ -28,23 +28,15 @@ class controller() :
         rospy.init_node('controller')
         loginfo("Initialized node Controller")
 
-        # rospy.Subscriber("/plane_traj", Trajectory, self.plane_trajCb, queue_size=10000)
-        # self.move_plane_traj_srv = createService('move_plane_traj', JointAction, self.handle_move_plane_traj, "left")
-
-        # self.set_plane_normal_srv = createServiceProxy('set_normal_vec', SetNormalVec, "")
-        
         baxter_interface.RobotEnable(CHECK_VERSION).enable()
 
+        self.limb_name = rospy.get_param("limb")
+        
         self.move_robot = createServiceProxy("move_robot", MoveRobot, "")
-        # self.move_robot_plane_service = createService('move_robot_plane', MoveRobot, self.handle_move_robot_plane, "")
 
         self.calibrate_kinect = createServiceProxy("calibrate_kinect", CalibrateKinect, "")
 
-        self.limb_name = rospy.get_param("limb")
         # self.grasp = createServiceProxy("grasp", MoveRobot, self.limb_name)
-
-        # self.joint_action_server = createServiceProxy("move_end_effector_trajectory", JointAction, "left")
-        # self.position_server = createServiceProxy("end_effector_position", EndEffectorPosition, "left")
 
         # self.get_block_poses = createServiceProxy("get_block_poses", BlockPoses, "")
 
