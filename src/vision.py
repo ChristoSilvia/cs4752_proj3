@@ -21,16 +21,25 @@ from baxter_pykdl import baxter_kinematics
 import baxter_interface
 from cs4752_proj3.msg import *
 from cs4752_proj3.srv import *
+import sys
 
 class HSVMask:
-	def __init__(self, name, mask, num_blobs=1, calibrated=True):
-		self.name = name
+	def __init__(self, color, camera, mask, num_blobs=1, calibrated=True):
+		self.color = color
+		self.camera = camera
 
 		self.calibrated = calibrated # set to false when you need to calibrate
 		self.param = "H"
 		self.prompt = True
 		self.m = mask
 		self.num_blobs = num_blobs
+
+		if self.color == 'blue':
+			self.shape = cv2.imread('../ros_ws/src/cs4752_proj3/img/square.jpg', 0)
+			cv2.imshow("test", self.shape)
+		elif self.color == 'pink':
+			self.shape = cv2.imread('../ros_ws/src/cs4752_proj3/img/circle.jpg', 0)
+			cv2.imshow("test", self.shape)
 
 	def changeMask(self, param, arg, inc):
 		limit = {}
@@ -65,7 +74,7 @@ class HSVMask:
 
 	def calibrate(self):
 		if self.prompt :
-			print "Calibrating %s HSV Mask" % self.name
+			print "Calibrating %s %s HSV Mask" % (self.color, self.camera)
 			print "Click on the image, then..."
 			print "use H, S, V, and D to switch the changing param"
 			print ""
@@ -77,10 +86,6 @@ class HSVMask:
 			self.prompt = False
 
 		key = cv2.waitKey(0) & 0xFF
-
-		# print key
-
-		# # if the space key is pressed, add the point to the dict
 
 		inc = .5
 		if self.param == "D":
@@ -118,7 +123,7 @@ class HSVMask:
 
 		if key == ord(" "):
 			self.calibrated = True
-			print "############## Calibrated %s Mask ##############" % self.name
+			print "############## Calibrated %s %s Mask ##############" % (self.color, self.camera)
 			print self.m
 			print "#############################################"
 
@@ -129,37 +134,40 @@ class Vision:
 		self.vision_type = rospy.get_namespace()[1:-1]
 
 		rospy.init_node("%s_vision" % self.vision_type)
-		
 
 		print "Initializing %s Vision" % self.vision_type
 
 		self.limb_name = rospy.get_param("/limb")
 		self.num_blocks = rospy.get_param("/num_blocks")
 
-		rospy.set_param("/camera/driver/depth_registration", True)
+		# rospy.set_param("/camera/driver/depth_registration", True)
 
 		self.lastImageTime = time.time()
 		self.imageWaitTime = .01
 
 		self.pink_kinect_mask = HSVMask(
-			"pink kinect",
+			"pink",
+			"kinect",
 			{'H': {'max': 168.0, 'min': 154.5}, 'S': {'max': 255.0, 'min': 70.0}, 'D': {'max': 1.7, 'min': 1.4}, 'V': {'max': 255.0, 'min': 70.0}},
 			calibrated=True
 		)
 		self.blue_kinect_mask = HSVMask(
-			"blue kinect",
+			"blue",
+			"kinect",
 			{'H': {'max': 140.0, 'min': 100.0}, 'S': {'max': 180.0, 'min': 83.0}, 'D': {'max': 1.7, 'min': 1.4}, 'V': {'max': 255, 'min': 115.0}},
 			calibrated=True,
 			num_blobs=self.num_blocks
 		)
 
 		self.pink_hand_mask = HSVMask(
-			"pink hand",
+			"pink",
+			"hand",
 			{'H': {'max': 180.0, 'min': 169.0}, 'S': {'max': 255.0, 'min': 100.0}, 'V': {'max': 255, 'min': 20.0}},
 			calibrated=True
 		)
 		self.blue_hand_mask = HSVMask(
-			"blue hand",
+			"blue",
+			"hand",
 			{'H': {'max': 140.0, 'min': 100.0}, 'S': {'max': 220.0, 'min': 50.0}, 'V': {'max': 252.0, 'min': 50.0}},
 			calibrated=True
 		)
@@ -171,8 +179,8 @@ class Vision:
 		if self.vision_type == "kinect":
 			self.rgb_topic = "/camera/rgb/image_rect_color"
 
-			# self.depth_topic ="/camera/depth_registered/hw_registered/image_rect"
-			self.depth_topic = "/camera/depth_registered/sw_registered/image_rect"
+			self.depth_topic ="/camera/depth_registered/hw_registered/image_rect"
+			# self.depth_topic = "/camera/depth_registered/sw_registered/image_rect"
 			self.depth_sub = rospy.Subscriber(self.depth_topic, Image, self.depth_callback, queue_size=1)
 			print "subscribed to %s" % self.depth_topic
 
@@ -196,6 +204,7 @@ class Vision:
 		
 		cv2.startWindowThread()
 		cv2.namedWindow('%s %s vision' % ("pink", self.vision_type))
+		print '%s %s vision' % ("pink", self.vision_type)
 
 		cv2.startWindowThread()
 		cv2.namedWindow('%s %s vision' % ("blue", self.vision_type))
@@ -225,10 +234,10 @@ class Vision:
 	def find_project_publish(self, hsv_mask):
 		screen_pub = None
 		base_pub = None
-		if hsv_mask.name.split(" ")[0] == 'blue':
+		if hsv_mask.color == 'blue':
 			screen_pub = self.blue_screen_pub
 			base_pub = self.blue_base_pub
-		elif hsv_mask.name.split(" ")[0] == 'pink':
+		elif hsv_mask.color == 'pink':
 			screen_pub = self.pink_screen_pub
 			base_pub = self.pink_base_pub
 
@@ -280,11 +289,6 @@ class Vision:
 			print("Error: no depth image")
 			return []
 
-		# if hsv_mask_name == 'pink':
-		# 	hsv_mask = self.pink_mask
-		# elif hsv_mask_name == 'blue'
-		# 	hsv_mask = self.blue_mask
-
 		colorLower = (
 			hsv_mask.m["H"]["min"], 
 			hsv_mask.m["S"]["min"], 
@@ -309,78 +313,63 @@ class Vision:
 		blobsFound = []
 		cnts = cv2.findContours(mask.copy(), cv2.RETR_EXTERNAL,cv2.CHAIN_APPROX_SIMPLE)[-2]
 
-		# print num_blobs
-
-		# print len(cs)
-		# while num_blobs > 0 and len(cnts) > 0:
+		# use shape of obj to get similarity
 		h = self.rgb_image.shape[0]
 		w = self.rgb_image.shape[1]
 		center_img = np.array([w/2.,h/2.])
-		def get_center_offset_and_area(c):
+		ret, thresh = cv2.threshold(hsv_mask.shape, 127, 255,0)
+		contours,hierarchy = cv2.findContours(thresh,2,1)
+		shape = contours[0]
+
+		def get_score(c):
 			try:
+				similarity = cv2.matchShapes(shape,c,1,0.0) + 1
 				area = cv2.contourArea(c)
 				M = cv2.moments(c)
 				cx = int(M['m10']/M['m00'])
 				cy = int(M['m01']/M['m00'])
-				# print M['m10']/M['m01']
 				centroid = np.array([cx,cy])
 				center_error = np.linalg.norm(centroid - center_img)
-				return center_error / (area * .25)
+				score = 1 / (center_error / (area * .25) * (similarity * .1))
+				return score
 			except:
-				return 1000000000000
+				return 0
 
-		def center_offset_compare(c1, c2):
-			return int(get_center_offset_and_area(c2) - get_center_offset_and_area(c1))
+		def score_compare(c1, c2):
+			return int(get_score(c1) - get_score(c2))
 
-		cs = sorted(cnts, cmp=center_offset_compare)[-num_blobs:]
+		cs = sorted(cnts, cmp=score_compare)[-num_blobs:]
 
 		for c in cs:
 
-			
+			area = cv2.contourArea(c)
+			similarity = cv2.matchShapes(shape,c,1,0.0) + 1
+			# print similarity
+			# print area
 
-	 		# num_blobs = num_blobs - 1
-			if hsv_mask.name.split(" ")[0] == 'blue':
-
-				# print min_center_error
-				# c = min_c
-				# hull = cv2.convexHull(c,returnPoints = False)
-				# defects = cv2.convexityDefects(c,hull)
-				# print defects
-				# M = cv2.moments(c)
-				# rows,cols = res.shape[:2]
-				# [vx,vy,x,y] = cv2.fitLine(c, cv2.DIST_L2,0,0.01,0.01)
-				# lefty = int((-x*vy/vx) + y)
-				# righty = int(((cols-x)*vy/vx)+y)
-				# cv2.line(res,(cols-1,righty),(0,lefty),(0,255,0),2)
+			if hsv_mask.color == 'blue':
 
 				rect = cv2.minAreaRect(c)
 				box = cv2.cv.BoxPoints(rect)
 				box = np.int0(box)
-
 				
 				radius = math.sqrt(cv2.contourArea(c))
-
-				# print radius
-				if radius > 5:
+				if radius > 5 and area > 150 and similarity < 10.0:
 					M = cv2.moments(c)
 					cx = int(M['m10']/M['m00'])
 					cy = int(M['m01']/M['m00'])
 
 					blobsFound.append([cx,cy,radius])
 					cv2.drawContours(res,[box],0,(0,0,255),2)
-				# cv2.drawContours(res,[rect],0,(0,0,255),2)
-				# cv2.circle(res, (int(x), int(y)), int(radius), (0,255,255), 2)
 			
-			elif hsv_mask.name.split(" ")[0] == 'pink':
+			elif hsv_mask.color == 'pink':
 				((x, y), radius) = cv2.minEnclosingCircle(c)
-				area = cv2.contourArea(c)
-				# print area
 				
-				if radius > 3 and area > 80:
+				if radius > 3 and area > 80 and similarity < 2.0:
 					blobsFound.append([x,y,radius])
 					cv2.circle(res, (int(x), int(y)), int(radius), (0,255,255), 2)
 
-		window_name = '%s vision' % hsv_mask.name
+		window_name = '%s %s vision' % (hsv_mask.color, hsv_mask.camera)
 		cv2.imshow(window_name, res)
 
 		if not hsv_mask.calibrated:
@@ -417,9 +406,8 @@ class Vision:
 		pose = Pose()
 		pose.position = Point(toball[0], -toball[1], toball[2])
 		pose.orientation = Quaternion(0,0,0,1)
-		#print "FOUND Pink BALL!!!!"
-		#print toball
 		return pose
+
 if __name__ == '__main__':
 	try:
 		v = Vision()

@@ -1,5 +1,5 @@
 <launch>
-	<param name="num_blocks" value="2" type="int"/>
+	<param name="num_blocks" value="3" type="int"/>
 	<arg name="calibrate" default="false"/>
 	<param name="limb" value="right" />
 

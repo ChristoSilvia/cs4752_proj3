@@ -225,7 +225,7 @@ class thrower :
 	def throw(self) :
 		# test throw params
 		release_pos = Point(0.573, 0.081, 0.036)
-		release_vel = Vector3(2.00, 0.00, 0.00)
+		release_vel = Vector3(100.00, 0.00, 0.00)
 		
 		safty_buffer = math.radians(10.0)
 		w1_min = -1.571
@@ -237,6 +237,8 @@ class thrower :
 
 		link_len = 0.31 # need to measure
 		angular_speed = linear_speed/link_len
+		if angular_speed > 4.0:
+			angular_speed = 4.0
 		# print "angular_speed (deg/sec)"
 		# print  math.degrees(angular_speed)
 		print "angular_speed (rad/sec)"
@@ -251,7 +253,7 @@ class thrower :
 			throw_dict[self.limb+'_'+joint_names[i]] = throw[i]
 			zero_dict[self.limb+'_'+joint_names[i]] = 0
 
-		back_swing = math.radians(50.0)
+		back_swing = math.radians(70.0)
 		follow_through = math.radians(60.0)
 		open_gripper_time = .10 # need to calibrate
 

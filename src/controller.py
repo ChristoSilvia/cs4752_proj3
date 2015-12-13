@@ -7,8 +7,12 @@ from scipy.interpolate import PiecewisePolynomial
 from matplotlib import pyplot as plt
 from cs4752_proj3.msg import *
 from cs4752_proj3.srv import *
+from game_server.msg import *
+from game_server.srv import *
 from config import *
 from geometry_msgs.msg import *
+from std_msgs.msg import *
+from sensor_msgs.msg import *
 from visualization_msgs.msg import Marker, MarkerArray
 import baxter_interface
 from baxter_interface import *
@@ -30,8 +34,12 @@ class controller() :
 
         baxter_interface.RobotEnable(CHECK_VERSION).enable()
 
+        # self.game_init = createServiceProxy("game server/init", Init, "")
+        # self.limb_name = self.game_init("ZIC",None)
+        # rospy.set_param("limb", self.limb_name)
+
         self.limb_name = rospy.get_param("limb")
-        
+
         self.move_robot = createServiceProxy("move_robot", MoveRobot, "")
 
         self.calibrate_kinect = createServiceProxy("calibrate_kinect", CalibrateKinect, "")
@@ -58,7 +66,6 @@ class controller() :
 
     def PHASE1(self):
         loginfo("PHASE: 1")
-
 
         def calibrate():
             loginfo("Calibrating Playing Field and Kinect Frame")
