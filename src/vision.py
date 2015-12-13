@@ -168,8 +168,8 @@ class Vision:
 		if self.vision_type == "kinect":
 			self.rgb_topic = "/camera/rgb/image_rect_color"
 
-			self.depth_topic ="/camera/depth_registered/hw_registered/image_rect"
-			#self.depth_topic = "/camera/depth_registered/image"
+			# self.depth_topic ="/camera/depth_registered/hw_registered/image_rect"
+			self.depth_topic = "/camera/depth_registered/sw_registered/image_rect"
 			self.depth_sub = rospy.Subscriber(self.depth_topic, Image, self.depth_callback, queue_size=1)
 			print "subscribed to %s" % self.depth_topic
 
@@ -198,10 +198,6 @@ class Vision:
 		cv2.namedWindow('%s %s vision' % ("blue", self.vision_type))
 
 		print "done initializing"
-
-		self.kinect_transform
-		while not rospy.is_shutdown():
-			if 
 
 		rospy.spin()
 

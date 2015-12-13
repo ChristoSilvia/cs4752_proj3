@@ -156,7 +156,7 @@ class kinect_calibration:
 
 		self.ts = self.transform_from_matrix(kinect_transform)
 
-		return GetCalibrationPointsResponse(self.ts)
+		return CalibrateKinectResponse(self.ts)
 
 
 	def get_base_frame_points(self):
@@ -234,13 +234,15 @@ class kinect_calibration:
 		point_count = 0
 		prompt = True
 
+		self.depth_topic = "/camera/depth_registered/sw_registered/image_rect"
+		# self.depth_topic = "/camera/depth_registered/hw_registered/image_rect"
 		self.image_sub = rospy.Subscriber("/camera/rgb/image_rect_color",Image,self.imagecallback, queue_size=1)
-		self.depth_image_sub = rospy.Subscriber("/camera/depth_registered/hw_registered/image_rect", Image, self.depthcallback, queue_size=1)
+		self.depth_image_sub = rospy.Subscriber(self.depth_topic, Image, self.depthcallback, queue_size=1)
 		self.depth_image = None
 		self.rgb_image = None
 
 		rate = rospy.Rate(5)
-		while self.depth_image == None or self.rgb_image == None :
+		while self.depth_image == None or self.rgb_image == None and not rospy.is_shutdown() :
 			print "Waiting for images"
 			rate.sleep()
 
