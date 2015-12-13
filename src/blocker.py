@@ -31,28 +31,51 @@ goal_position = { 'left_w0': -0.08705,
 
 class Blocker():
     def __init__(self, limb_name, center_of_goal):
-        self.w = 0.6858
-        self.l = 1.3843
-        self.w_goal = 0.29845
-        self.gripper_offset = 0.04
-        self.center_of_goal = center_of_goal
-
-        self.y_velocity_cutoff = 5e-3
-
         self.limb_name = limb_name        
         self.limb = baxter_interface.Limb(limb_name)
         self.joint_names = self.limb.joint_names()
         self.limb_kin = baxter_kinematics(limb_name)
 
-        self.limb.move_to_joint_positions(goal_position)
-        self.base_frame = config.vector3_to_numpy(self.limb.endpoint_pose()['position'])
+        self.field_width = 0.6858
+        self.field_length = 1.3843
+        self.goal_width = 0.29845
+        self.gripper_width = 0.04
+        self.gripper_depth = 0.03
 
-        print(self.base_frame)
+        self.y_velocity_cutoff = 5e-3
+		self.joint_position_tolerance = 0.02
+		
+		self.center_of_goal = center_of_goal
+
+		# BEGINNING OF IK
+
+		if self.limb_name == "left":
+			wrist_angle = -0.25*np.pi
+		else:
+			wrist_angle = 0.75*np.pi
+		self.blocking_orientation = np.array([np.sin(wrist_angle), np.cos(wrist_angle), 0.0, 0.0])
+
+		goal_joint_values = None
+		while goal_joint_values is None:
+			print("Trying IK")
+			goal_joint_values = self.limb_kin.inverse_kinematics(
+				list(self.center_of_goal),
+				orientation=list(self.blocking_orientation),
+				seed=list(config.joint_dict_to_numpy(self.limb_name, self.limb.joint_values())))
+			
+		# self.limb.move_to_joint_positions(goal_position)
+        self.limb.move_to_joint_positions(
+			goal_joint_values,
+			threshold=self.joint_position_tolerance)
+
+		# END OF IK
 
         self.desired_position = config.vector3_to_numpy(self.limb.endpoint_pose()['position'])
 
-        rospy.Subscriber('/blocker_position', BlockerPosition, self.set_target)
-        # rospy.Subscriber('/ball_position_velocity', BallPositionVelocity, self.set_target)
+        rospy.Subscriber(
+			'/ball_position_velocity', 
+			BallPositionVelocity, 
+			self.handle_position_velocity)
 
         # x oscillates at 5.3
         self.kp = np.array([2.65, 1.3, 0.9])
@@ -105,61 +128,32 @@ class Blocker():
         plt.grid(True)
         plt.show()
 
-    def set_target(self, message):
-        print("Recieved New Target: {0}".format(message.x))
-        self.desired_position[0] = self.base_frame[0] + message.x
+	def handle_position_velocity(self, data):
+		ball_position = config.vector3_to_numpy(data.position)
+		ball_velocity = config.vector3_to_numpy(data.velocity)
+		
+		if (ball_velocity[1] < self.y_velocity_cutoff and self.arm_name == "left") or (ball_velocity[1] > -self.y_velocity_cutoff and self.arm_name == "right"):
+			print("Ball is Moving Away, going to Guard Position")
+			self.desired_position = self.center_of_goal
+		else:
+			if self.arm_name == "left":
+				ball_tan = ball_velocity[0]/ball_velocity[1]
+			else:
+				ball_tan = ball_velocity[0]/(-ball_velocity[1])
+
+			dist_to_goal = np.abs(self.center_of_goal[1] - ball_position[1]) - self.gripper_depth
+
+			no_walls_ball_hit_location = ball_tan*dist_to_goal + ball_position[0]
+
+			gripper_x_target = np.clip(
+				self.base_frame[0] - 0.5*self.w_goal - self.gripper_offset,
+				self.base_frame[0] + 0.5*self.w_goal + self.gripper_offset,
+				no_walls_ball_hit_location)
+
+			self.desired_position = self.center_of_goal + np.array([gripper_x_target, 0, 0])
+		print(self.desired_position - self.center_of_goal)
             
 
-    def handle_position_velocity_info(self, data):
-        print("\nRecieved data\n------------\n")
-        if self.limb_name == "left":
-            x = -(data.position.x - self.center_of_goal[0])
-            y = -(data.position.y - self.center_of_goal[1])
-        else:
-            x = data.position.x - self.center_of_goal[0]
-            y = data.position.y - self.center_of_goal[1]
-            
-
-        print("Ball Position: ({0},{1})".format(x,y))
-        if np.abs(data.velocity.y) > self.y_velocity_cutoff:
-            if self.limb_name == "left":
-                tan_theta = (-data.velocity.x) / (data.velocity.y)
-            else:
-                tan_theta = ( data.velocity.x) / (-data.velocity.y)
-            print("Ball Angle: {0}".format(tan_theta))
-            x_blocker = self.target_position(x, y, tan_theta)
-        else:
-            print("Ball is Stationary")
-            x_blocker = 0.0
-            print("")
-
-        if self.limb_name == "left":
-            self.desired_position[0] -= x_blocker
-        else:
-            self.desired_position[0] += x_blocker
-        print("Blocker x target: {0}".format(x_blocker))
-
-    def impact_location_on_far_wall(self, x, y, tan_theta):
-        unwalled_impact_location = x + y * tan_theta
-        print("Unwalled impact location: {0}".format(unwalled_impact_location))
-		
-        impact_location_sign = np.sign(unwalled_impact_location)
-		
-        limited_impact_location = np.abs(unwalled_impact_location) % 2*self.w
-
-        if limited_impact_location < 0.5*self.w:
-            return impact_location_sign * limited_impact_location
-        elif limited_impact_location < 1.5*self.w:
-            return impact_location_sign * ( self.w - limited_impact_location)
-        else:
-            return impact_location_sign * ( limited_impact_location - 2.0*self.w)
-
-    def target_position(self, x, y, tan_theta):
-        impact_location = self.impact_location_on_far_wall(x, y, tan_theta)
-        return np.clip(-0.5*self.w_goal + self.gripper_offset, 
-                        0.5*self.w_goal - self.gripper_offset, 
-                        impact_location)
-      
           
 
 if __name__ == '__main__':
@@ -172,4 +166,6 @@ if __name__ == '__main__':
         arm_name = sys.argv[1]
     assert (arm_name == "left" or arm_name == "right")
     print("Initializing Blocker for {0} arm".format(arm_name))
-    Blocker(arm_name, [0.59, 0.63, -0.08]) 
+	# POSITION OF GOAL
+	right_goal = np.array([])
+    Blocker(arm_name, right_goal) 
