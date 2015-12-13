@@ -1,0 +1,4 @@
+geometry_msgs/Pose[] sources
+geometry_msgs/Pose[] destinations
+---
+bool success
