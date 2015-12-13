@@ -16,15 +16,17 @@ class DetermineVelocities:
 		self.rviz_pub = rospy.Publisher('/ball_position_velocity_pose', PoseStamped,queue_size=10) 
 		# self.pub = rospy.Publisher('/ball_position', Point ,queue_size=10) 
 		self.init_time = rospy.Time.now().to_sec()
+		rate = rospy.Rate(200)
 		while not rospy.is_shutdown():
 			t = rospy.Time.now().to_sec() - self.init_time
 			# print t
 
-			r = .10
-			x = r * np.cos(t)
-			y = r * np.sin(t)
-			dx = r * -np.sin(t)
-			dy = r * np.cos(t)
+			ry = .10
+			rx = .30
+			x = rx * np.cos(t)
+			y = ry * np.sin(t)
+			dx = rx * -np.sin(t)
+			dy = ry * np.cos(t)
 
 			center_of_field = Point(0.5851, 0.0545, -0.0805)
 
@@ -49,6 +51,7 @@ class DetermineVelocities:
 			self.pub.publish(position_velocity)
 			self.rviz_pub.publish(position_velocity_pose)
 			# self.pub.publish(position_velocity.position)
+			rate.sleep()
 								
 
 

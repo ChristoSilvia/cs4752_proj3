@@ -33,7 +33,6 @@ goal_position = { 'left_w0': -0.08705,
 
 class Blocker():
 	def __init__(self, limb_name, center_of_goal):
-		baxter_interface.RobotEnable(baxter_interface.CHECK_VERSION).enable()
 		self.limb_name = limb_name		
 		self.limb = baxter_interface.Limb(limb_name)
 		self.joint_names = self.limb.joint_names()
@@ -104,6 +103,7 @@ class Blocker():
 	
 			position = config.vector3_to_numpy(self.limb.endpoint_pose()['position'])
 			error = position - self.desired_position
+			
 			bs.append(self.desired_position[0] - self.center_of_goal[0])
 
 			# print "bs"
@@ -144,13 +144,19 @@ class Blocker():
 		plt.show()
 
 	def handle_position_velocity(self, data):
+		print("Recieved Data")
+		print("=============")
 		ball_position = config.vector3_to_numpy(data.position)
 		ball_velocity = config.vector3_to_numpy(data.velocity)
+		print("Ball Position: {0}".format(ball_position))
+		print("Ball Velocity: {0}".format(ball_velocity))
 		
 		if (ball_velocity[1] < self.y_velocity_cutoff and self.limb_name == "left") or (ball_velocity[1] > -self.y_velocity_cutoff and self.limb_name == "right"):
 		# if False:
 			print("Ball is Moving Away, going to Guard Position")
-			self.desired_position = self.center_of_goal
+			self.desired_position[0] = self.center_of_goal[0]
+			self.desired_position[1] = self.center_of_goal[1]
+			self.desired_position[2] = self.center_of_goal[2]
 		else:
 			if self.limb_name == "left":
 				ball_tan = ball_velocity[0]/ball_velocity[1]
@@ -167,17 +173,18 @@ class Blocker():
 			# print no_walls_ball_hit_location
 			# self.test_block_pub.publish(Float64(no_walls_ball_hit_location))
 
-			# gripper_x_target = np.clip(
-			# 	self.center_of_goal[0] - 0.5*self.goal_width - self.gripper_depth,
-			# 	self.center_of_goal[0] + 0.5*self.goal_width + self.gripper_depth,
-			# 	no_walls_ball_hit_location)
+			gripper_x_target = np.clip(
+				no_walls_ball_hit_location,
+				self.center_of_goal[0] - 0.5*self.goal_width - self.gripper_depth,
+				self.center_of_goal[0] + 0.5*self.goal_width + self.gripper_depth)
 
-			gripper_x_target = no_walls_ball_hit_location
-			print gripper_x_target
+			# print gripper_x_target
 
-			self.desired_position = self.center_of_goal + np.array([gripper_x_target, 0, 0])
-
-		# print(self.desired_position - self.center_of_goal)
+			# self.desired_position = self.center_of_goal
+			self.desired_position[0] = gripper_x_target
+			self.desired_position[1] = self.center_of_goal[1]
+			self.desired_position[2] = self.center_of_goal[2]
+		print("Desired Position: {0}".format(self.desired_position))
 			
 
 		  
@@ -185,6 +192,7 @@ class Blocker():
 if __name__ == '__main__':
 	rospy.init_node('blocker')
 	print("Initialized node 'blocker'")
+	baxter_interface.RobotEnable(baxter_interface.CHECK_VERSION).enable()
 
 	limb_name = None
 	try:
@@ -196,5 +204,5 @@ if __name__ == '__main__':
 	assert (limb_name == "left" or limb_name == "right")
 	print("Initializing Blocker for {0} arm".format(limb_name))
 	# POSITION OF GOAL
-	left_goal = np.array([0.592,0.641,0.0687])
+	left_goal = np.array([0.592,0.641,-0.0687])
 	Blocker(limb_name, left_goal) 
