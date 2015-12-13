@@ -52,8 +52,7 @@ def numpy_to_vector3(n):
 def numpy_to_joint_dict(limb, data):
 	joint_dict = {}
 	for i in range(0,len(joint_names)):
-		joint_dict[ limb + "_" + joint_names[i] 
-		] = data[i]
+		joint_dict[ limb + "_" + joint_names[i] ] = data[i]
 	return joint_dict
 
 def joint_dict_to_numpy(limb, joint_dict):

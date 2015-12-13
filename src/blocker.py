@@ -59,54 +59,55 @@ class Blocker():
 		self.blocking_orientation = np.array([np.sin(theta), np.cos(theta), 0.0, 0.0])
 
 		goal_joint_values = None
-		while goal_joint_values is None and not rospy.is_shutdown():
+		while goal_joint_values == None and not rospy.is_shutdown():
 			print("Trying IK")
 			goal_joint_values = np.array(self.limb_kin.inverse_kinematics(
 				list(self.center_of_goal),
 				orientation=list(self.blocking_orientation),
 				seed=list(config.joint_dict_to_numpy(self.limb_name, self.limb.joint_angles()))))
 		print("Found IK Solution")
+		print(goal_joint_values)
 
-		# eps = 1e-3
-		# joint_angle_error_index = np.argmin([np.abs(goal_joint_values[6] - 0.5*np.pi), 
-		# 	np.abs(goal_joint_values[6] + 0.5*np.pi)])
-		# joint_angle_error = [goal_joint_values[6] - 0.5*np.pi, goal_joint_values[6] + 0.5*np.pi][joint_angle_error_index]
-		# print(goal_joint_values)
-		# print("Joint Angle Error is: {0}".format(joint_angle_error))
-		# while not rospy.is_shutdown() and np.abs(joint_angle_error) > self.joint_position_tolerance:
-		# 	print("Joint Angle Error is: {0}".format(joint_angle_error))
-		# 	jacobian = np.array(self.limb_kin.jacobian(joint_values=config.numpy_to_joint_dict(self.limb_name, goal_joint_values)))
-		# 	null_joint_movement = config.null(jacobian)[1][:,0]
+		# # eps = 1e-3
+		# # joint_angle_error_index = np.argmin([np.abs(goal_joint_values[6] - 0.5*np.pi), 
+		# # 	np.abs(goal_joint_values[6] + 0.5*np.pi)])
+		# # joint_angle_error = [goal_joint_values[6] - 0.5*np.pi, goal_joint_values[6] + 0.5*np.pi][joint_angle_error_index]
+		# # print(goal_joint_values)
+		# # print("Joint Angle Error is: {0}".format(joint_angle_error))
+		# # while not rospy.is_shutdown() and np.abs(joint_angle_error) > self.joint_position_tolerance:
+		# # 	print("Joint Angle Error is: {0}".format(joint_angle_error))
+		# # 	jacobian = np.array(self.limb_kin.jacobian(joint_values=config.numpy_to_joint_dict(self.limb_name, goal_joint_values)))
+		# # 	null_joint_movement = config.null(jacobian)[1][:,0]
 
-		# 	minimizing_joint_velocity = - null_joint_movement * (joint_angle_error/null_joint_movement[6])
-		# 	goal_joint_values += minimizing_joint_velocity
-		# 	joint_angle_error_index = np.argmin([np.abs(goal_joint_values[6] - 0.5*np.pi), 
-		# 		np.abs(goal_joint_values[6] + 0.5*np.pi)])
-		# 	joint_angle_error = [goal_joint_values[6] - 0.5*np.pi, goal_joint_values[6] + 0.5*np.pi][joint_angle_error_index]
-		# print("Finished Minimizing Joint Angle Error")
+		# # 	minimizing_joint_velocity = - null_joint_movement * (joint_angle_error/null_joint_movement[6])
+		# # 	goal_joint_values += minimizing_joint_velocity
+		# # 	joint_angle_error_index = np.argmin([np.abs(goal_joint_values[6] - 0.5*np.pi), 
+		# # 		np.abs(goal_joint_values[6] + 0.5*np.pi)])
+		# # 	joint_angle_error = [goal_joint_values[6] - 0.5*np.pi, goal_joint_values[6] + 0.5*np.pi][joint_angle_error_index]
+		# # print("Finished Minimizing Joint Angle Error")
 
-		#self.limb.move_to_joint_positions(goal_position)
+		# #self.limb.move_to_joint_positions(goal_position)
+		print("Beginning to Move to Goal Pose")
 		self.limb.move_to_joint_positions(
 			config.numpy_to_joint_dict(self.limb_name, goal_joint_values),
 			threshold=self.joint_position_tolerance)
+		print("Completed Moving to Goal Pose")
 
 		# END OF IK
 
-		self.desired_position = config.vector3_to_numpy(self.limb.endpoint_pose()['position'])
-		
+		endpoint_pose = self.limb.endpoint_pose()
+		self.desired_position = config.vector3_to_numpy(endpoint_pose['position'])
+		self.desired_orientation = config.quaternion_to_numpy(endpoint_pose['orientation'])
 
 		rospy.Subscriber(
 			'/ball_position_velocity', 
 			BallPositionVelocity, 
 			self.handle_position_velocity)
 
-		self.test_block_pub = rospy.Publisher('/test_block_pos', Float64,queue_size=10) 
 
-		# x oscillates at 5.3)
-
-		self.kp = np.array([2.65, 1.3, 0.9])
-		self.ki = np.array([0.0, 1.5, 0.4])
-		self.kd = np.array([4.2, 0.0, 0.0])
+		self.kp = np.array([2.65, 1.3, 0.9, 0.5, 0.5, 0.5])
+		self.ki = np.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0])
+		self.kd = np.array([4.2, 0.0, 0.0, 0.0, 0.0, 0.0])
 
 		ts = []
 		self.ts = []
@@ -117,18 +118,30 @@ class Blocker():
 		self.unnormalized_ball_poses = []
 		self.reflected_ball_poses = []
 
-		integral = np.zeros(3)
+		integral = np.zeros(6)
 
 		start_time = rospy.get_time()
 		self.start_time = rospy.get_time()
 		last_time = start_time
-		last_error = config.vector3_to_numpy(self.limb.endpoint_pose()['position']) - self.desired_position
+		error = np.zeros(6)
+		last_error = error
 		while not rospy.is_shutdown()  :
 			jacobian = np.array(self.limb_kin.jacobian())
 			jacobian_pinv = np.linalg.pinv(jacobian)
-	
+
 			position = config.vector3_to_numpy(self.limb.endpoint_pose()['position'])
-			error = position - self.desired_position
+			error[:3] = position - self.desired_position
+
+			orientation = config.quaternion_to_numpy(endpoint_pose['orientation'])
+			relative_orientation = config.multiply_quaternion(orientation, 
+				config.invert_unit_quaternion(self.desired_orientation))
+			relative_orientation_angle = 2.0*np.arccos(relative_orientation[3])
+			if relative_orientation_angle < 1e-6:
+				error[3:] = np.zeros(3)
+			else:
+				relative_orientation_axis = relative_orientation[:3]/np.sin(0.5*relative_orientation_angle)
+				orientation_error = relative_orientation_angle*relative_orientation_axis
+				error[3:] = orientation_error
 			
 			bs.append(self.desired_position[0] - self.center_of_goal[0])
 
@@ -149,8 +162,7 @@ class Blocker():
 			zs.append(error[2])
 	
 			desired_twist = np.empty(6)
-			desired_twist[0:3] = - self.kp * error - self.ki * integral - self.kd * derivative
-			desired_twist[3:6] = np.zeros(3)
+			desired_twist = - self.kp * error - self.ki * integral - self.kd * derivative
 	
 			joint_velocities = np.dot(jacobian_pinv, desired_twist)
 	
@@ -255,5 +267,8 @@ if __name__ == '__main__':
 	print("Initializing Blocker for {0} arm".format(limb_name))
 	# POSITION OF GOAL
 	left_goal = np.array([0.58,0.64,-0.06])
-	right_goal = np.array([0.58, -0.74, -0.06])
-	Blocker(limb_name, right_goal) 
+	right_goal = np.array([0.58, -0.66, -0.06])
+	if limb_name == "left":
+		Blocker(limb_name, left_goal)
+	else:
+		Blocker(limb_name, right_goal) 
