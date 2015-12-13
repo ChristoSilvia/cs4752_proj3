@@ -70,7 +70,7 @@ class thrower :
 		# self.moveToThrow()
 
 		# recorded good throw configs:
-		self.moveToThrow(w1=-0.7)
+		#self.moveToThrow(w1=-0.7)
 		# self.moveToThrow(w1=-0.7, e1=2.40)
 		# self.moveToThrow(w1=-0.7, e1=1.57)
 
@@ -80,10 +80,14 @@ class thrower :
 		
 		# close the gripper
 		# self.move_robot(CLOSE_GRIPPER, self.limb, Pose())
-
+		print "CURRENT ARM POSITIONS"
+		print self.arm.joint_angles()
+		#self.testLeftArmInitialPositions(3)
 		# throw the ball
 		self.throw()
 		# self.throw_2([0.5, 0.0, 0.1], 1.0, 0.0, math.radians(10))
+		#while not rospy.shutdown() :
+		#	pass
 
 		#rospy.spin()
 
@@ -94,14 +98,39 @@ class thrower :
 
 		if self.canceled:
 			return ActionResponse(False)
+
+		
 		self.throw()
 
 		return ActionResponse(True)
+
+
+	#give an integer from the set and move to that location. these are known hot spots...
+	def testLeftArmInitialPositions(self, index) :
+		if index == 1:
+			new_pose = {'left_w0': -3.0590003413140225, 'left_w1': 0.6707745877077995, 'left_w2': -0.5000126397492455, 
+			'left_e0': -1.3369353610858052, 'left_e1': 1.172494668288068, 'left_s0': -0.07999934123325048, 'left_s1': 
+			-1.0000100920451613}
+		elif index == 2 :
+			new_pose = {'left_w0': -2.6461548774463948, 'left_w1': -0.6628873295811122, 'left_w2': 0.1619836544514941, 'left_e0': 
+			-2.4273649777016555, 'left_e1': 0.7579967596882549, 'left_s0': -0.04740248292186955, 'left_s1': -0.7847008492166339}
+			
+		elif index == 3 :
+			new_pose = {'left_w0': -2.5017333910662423, 'left_w1': 1.160111690287775, 'left_w2': 0.0414804259901862, 'left_e0': 
+			-2.3290057728286806, 'left_e1': 2.054243975896581, 'left_s0': 0.21496177433691788, 'left_s1': -0.26548120061751224}
+		
+		self.gripper.command_position(100, block=True)
+		self.arm.move_to_joint_positions(new_pose)
+		rospy.sleep(1.5)
+		self.gripper.command_position(0, block=True)
+
 
 	def moveToThrow(self, e1=2.222, w0=1.7357, w1=0.0000) :
 		e1_range = [1.57, 2.22, 2.40] # elbow far or close to body
 		w0_range = [0.92, 1.74, 2.50] # yaw for bank shots
 		w1_range = [-1.0, 0.00, 0.50] # release pitch
+
+
 
 		common_pos = {
 			's0': -0.8747, 
@@ -232,11 +261,11 @@ class thrower :
 	# 		self.arm.set_joint_velocities(throw_dict)
 	# 		rate.sleep()
 
-
+	#throws through w1, setting the release to be the initial position
 	def throw(self) :
 		# test throw params
-		release_pos = Point(0.573, 0.081, 0.036)
-		release_vel = Vector3(1.50, 0.00, 0.00)
+		#release_pos = Point(0.573, 0.081, 0.036)
+		release_vel = Vector3(8.0, 0.00, 0.00)
 		
 		safty_buffer = math.radians(10.0)
 		w1_min = -1.571
@@ -248,8 +277,8 @@ class thrower :
 
 		link_len = 0.31 # need to measure
 		angular_speed = linear_speed/link_len
-		if angular_speed > 4.0:
-			angular_speed = 4.0
+		if angular_speed > 6.0:
+			angular_speed = 6.0
 		# print "angular_speed (deg/sec)"
 		# print  math.degrees(angular_speed)
 		print "angular_speed (rad/sec)"

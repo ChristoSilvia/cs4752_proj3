@@ -36,10 +36,10 @@ class HSVMask:
 
 		if self.color == 'blue':
 			self.shape = cv2.imread('../ros_ws/src/cs4752_proj3/img/square.jpg', 0)
-			cv2.imshow("test", self.shape)
+			# cv2.imshow("test", self.shape)
 		elif self.color == 'pink':
 			self.shape = cv2.imread('../ros_ws/src/cs4752_proj3/img/circle.jpg', 0)
-			cv2.imshow("test", self.shape)
+			# cv2.imshow("test", self.shape)
 
 	def changeMask(self, param, arg, inc):
 		limit = {}
@@ -155,6 +155,7 @@ class Vision:
 			"blue",
 			"kinect",
 			{'H': {'max': 140.0, 'min': 100.0}, 'S': {'max': 180.0, 'min': 83.0}, 'D': {'max': 1.7, 'min': 1.4}, 'V': {'max': 255, 'min': 115.0}},
+#			calibrated=False,
 			calibrated=True,
 			num_blobs=self.num_blocks
 		)

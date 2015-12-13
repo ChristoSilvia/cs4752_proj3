@@ -1,6 +1,6 @@
 <launch>
 	<param name="num_blocks" value="3" type="int"/>
-	<param name="limb" value="right" />
+	<param name="limb" value="left" />
 
     <!-- <node name="controller" pkg="cs4752_proj3" type="controller.py" output="screen"></node> -->
     <node name="thrower" pkg="cs4752_proj3" type="thrower.py" output="screen"></node>

@@ -30,6 +30,11 @@ goal_position = { 'left_w0': -0.08705,
 				  'left_s0': -0.12502,
 				  'left_s1': -0.49011 }
 
+joint_ranges = np.array([3.351, 3.194, 6.056, 2.67, 6.117, 3.665, 6.117])
+joint_mins = np.array([-2.461, -2.147, -3.028, -0.052, -3.059, -1.571, -3.059])
+joint_maxs = joint_mins + joint_ranges
+
+
 
 class Blocker():
 	def __init__(self, limb_name, center_of_goal):
@@ -54,7 +59,7 @@ class Blocker():
 		if self.limb_name == "left":
 			theta = -0.25*np.pi
 		else:
-			theta = 0.75*np.pi
+			theta = 0.25*np.pi
 
 		self.blocking_orientation = np.array([np.sin(theta), np.cos(theta), 0.0, 0.0])
 
@@ -185,7 +190,7 @@ class Blocker():
 		rospy.spin()
 
 	def handle_position_velocity(self, data):
-		# print("Recieved Data")
+		print("Recieved Data")
 		# print("=============")
 		ball_position = config.vector3_to_numpy(data.position)
 		ball_velocity = config.vector3_to_numpy(data.velocity)
