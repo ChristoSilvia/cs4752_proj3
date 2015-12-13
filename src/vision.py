@@ -23,13 +23,14 @@ from cs4752_proj3.msg import *
 from cs4752_proj3.srv import *
 
 class HSVMask:
-	def __init__(self, name, mask, calibrated=True):
+	def __init__(self, name, mask, num_blobs=1, calibrated=True):
 		self.name = name
 
 		self.calibrated = calibrated # set to false when you need to calibrate
 		self.param = "H"
 		self.prompt = True
 		self.m = mask
+		self.num_blobs = num_blobs
 
 	def changeMask(self, param, arg, inc):
 		limit = {}
@@ -133,6 +134,7 @@ class Vision:
 		print "Initializing %s Vision" % self.vision_type
 
 		self.limb_name = rospy.get_param("/limb")
+		self.num_blocks = rospy.get_param("/num_blocks")
 
 		rospy.set_param("/camera/driver/depth_registration", True)
 
@@ -147,7 +149,8 @@ class Vision:
 		self.blue_kinect_mask = HSVMask(
 			"blue kinect",
 			{'H': {'max': 140.0, 'min': 100.0}, 'S': {'max': 180.0, 'min': 83.0}, 'D': {'max': 1.7, 'min': 1.4}, 'V': {'max': 255, 'min': 115.0}},
-			calibrated=True
+			calibrated=True,
+			num_blobs=self.num_blocks
 		)
 
 		self.pink_hand_mask = HSVMask(
@@ -186,7 +189,7 @@ class Vision:
 		self.blue_screen_pub = rospy.Publisher("/found_blue_%s" % self.vision_type, ScreenObj, queue_size=1)
 		
 		self.pink_base_pub = rospy.Publisher("/ball_pose_%s" % self.vision_type, PoseStamped, queue_size=1)
-		self.blue_base_pub = rospy.Publisher("/block_pose_%s" % self.vision_type, PoseStamped, queue_size=1)
+		self.blue_base_pub = rospy.Publisher("/block_poses_%s" % self.vision_type, PoseStamped, queue_size=1)
 		
 		self.rate = rospy.Rate(30)
 		self.pixel_radius = 10#2.1539 #radius in pixels at 1 meter of orange ball
@@ -229,7 +232,7 @@ class Vision:
 			screen_pub = self.pink_screen_pub
 			base_pub = self.pink_base_pub
 
-		objs = self.findBlobsofHue(hsv_mask, 1 , self.rgb_image)
+		objs = self.findBlobsofHue(hsv_mask, hsv_mask.num_blobs , self.rgb_image)
 		if len(objs) > 0:
 			screen_pub.publish(ScreenObj(objs[0][0],objs[0][1],objs[0][2],self.rgb_image.shape[0],self.rgb_image.shape[1]))
 		else:	
@@ -306,15 +309,76 @@ class Vision:
 		blobsFound = []
 		cnts = cv2.findContours(mask.copy(), cv2.RETR_EXTERNAL,cv2.CHAIN_APPROX_SIMPLE)[-2]
 
-		while num_blobs > 0 and len(cnts) > 0:
-			c = max(cnts, key=cv2.contourArea)
+		# print num_blobs
+
+		# print len(cs)
+		# while num_blobs > 0 and len(cnts) > 0:
+		h = self.rgb_image.shape[0]
+		w = self.rgb_image.shape[1]
+		center_img = np.array([w/2.,h/2.])
+		def get_center_offset_and_area(c):
+			try:
+				area = cv2.contourArea(c)
+				M = cv2.moments(c)
+				cx = int(M['m10']/M['m00'])
+				cy = int(M['m01']/M['m00'])
+				# print M['m10']/M['m01']
+				centroid = np.array([cx,cy])
+				center_error = np.linalg.norm(centroid - center_img)
+				return center_error / (area * .25)
+			except:
+				return 1000000000000
+
+		def center_offset_compare(c1, c2):
+			return int(get_center_offset_and_area(c2) - get_center_offset_and_area(c1))
+
+		cs = sorted(cnts, cmp=center_offset_compare)[-num_blobs:]
+
+		for c in cs:
+
 			
-			((x, y), radius) = cv2.minEnclosingCircle(c)
-	 		num_blobs = num_blobs - 1
+
+	 		# num_blobs = num_blobs - 1
+			if hsv_mask.name.split(" ")[0] == 'blue':
+
+				# print min_center_error
+				# c = min_c
+				# hull = cv2.convexHull(c,returnPoints = False)
+				# defects = cv2.convexityDefects(c,hull)
+				# print defects
+				# M = cv2.moments(c)
+				# rows,cols = res.shape[:2]
+				# [vx,vy,x,y] = cv2.fitLine(c, cv2.DIST_L2,0,0.01,0.01)
+				# lefty = int((-x*vy/vx) + y)
+				# righty = int(((cols-x)*vy/vx)+y)
+				# cv2.line(res,(cols-1,righty),(0,lefty),(0,255,0),2)
+
+				rect = cv2.minAreaRect(c)
+				box = cv2.cv.BoxPoints(rect)
+				box = np.int0(box)
+
+				
+				radius = math.sqrt(cv2.contourArea(c))
+
+				# print radius
+				if radius > 5:
+					M = cv2.moments(c)
+					cx = int(M['m10']/M['m00'])
+					cy = int(M['m01']/M['m00'])
+
+					blobsFound.append([cx,cy,radius])
+					cv2.drawContours(res,[box],0,(0,0,255),2)
+				# cv2.drawContours(res,[rect],0,(0,0,255),2)
+				# cv2.circle(res, (int(x), int(y)), int(radius), (0,255,255), 2)
 			
-			if radius > 3:# only proceed if the radius meets a minimum size
-				blobsFound.append([x,y,radius])
-				cv2.circle(res, (int(x), int(y)), int(radius), (0,255,255), 2)
+			elif hsv_mask.name.split(" ")[0] == 'pink':
+				((x, y), radius) = cv2.minEnclosingCircle(c)
+				area = cv2.contourArea(c)
+				# print area
+				
+				if radius > 3 and area > 80:
+					blobsFound.append([x,y,radius])
+					cv2.circle(res, (int(x), int(y)), int(radius), (0,255,255), 2)
 
 		window_name = '%s vision' % hsv_mask.name
 		cv2.imshow(window_name, res)
