@@ -100,15 +100,22 @@ class Blocker():
 			BallPositionVelocity, 
 			self.handle_position_velocity)
 
-		createService('block', MoveRobot, self.block, "")
+		createService('block', Action, self.block, "")
+		
+		self.cancel_sub = rospy.Subscriber("/action_cancel", Int32, self.cancel, queue_size=1)
 
 
 		self.kp = np.array([2.65, 1.3, 0.9, 0.5, 0.5, 0.5])
 		self.ki = np.array([0.0, 1.5, 0.4, 0.0, 0.0, 0.0])
 		self.kd = np.array([4.2, 0.0, 0.0, 0.0, 0.0, 0.0])
 
-	def block(self, args):
+	def cancel(self, msg):
+		if msg.data == BLOCK:
+			self.canceled = True
+
+	def block(self, req):
 		self.moving_away = False
+		self.canceled = False
 
 		self.limb.move_to_joint_positions(
 			config.numpy_to_joint_dict(self.limb_name, goal_joint_values),
@@ -123,6 +130,10 @@ class Blocker():
 		error = np.zeros(6)
 		last_error = error
 		while not rospy.is_shutdown() and not self.moving_away:
+			
+			if self.canceled:
+				return ActionResponse(False)
+
 			jacobian = np.array(self.limb_kin.jacobian())
 			jacobian_pinv = np.linalg.pinv(jacobian)
 
@@ -155,7 +166,7 @@ class Blocker():
 			self.limb.set_joint_velocities(
 				config.numpy_to_joint_dict(self.limb_name, joint_velocities))
 
-		return MoveRobotResponse(True)
+		return ActionResponse(True)
 
 	def handle_position_velocity(self, data):
 		# print("Recieved Data")

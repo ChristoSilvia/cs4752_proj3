@@ -40,10 +40,12 @@ class grasper:
 
 		self.move_robot = createServiceProxy("move_robot", MoveRobot, "")
 
+		self.cancel_sub = rospy.Subscriber("/action_cancel", Int32, self.cancel, queue_size=1)
+
 		self.blue_sub = rospy.Subscriber("/found_blue_hand", ScreenObj, self.blue_callback, queue_size=1)
 		self.pink_sub = rospy.Subscriber("/found_pink_hand", ScreenObj, self.pink_callback, queue_size=1)
 		
-        grasp_service = createService('grasp', MoveRobot, self.grasp, self.limb_name)
+		grasp_service = createService('grasp', Action, self.grasp, "")
 
 		self.execute_pub = rospy.Publisher("/execute_vel", Vector3)
 
@@ -55,8 +57,11 @@ class grasper:
 
 		print "done initializing"
 
-		self.grasp("blue")
-		# self.grasp("pink")
+		self.grasp("")
+
+	def cancel(self, msg):
+		if msg.data == GRAB:
+			self.canceled = True
 
 	def get_position(self):
 		return np.array(self.limb.endpoint_pose()['position'])
@@ -67,14 +72,20 @@ class grasper:
 	def blue_callback(self, data):
 		self.objs["blue"] = data
 
-	def grasp(self, req) :
-		color = req.limb
+	def grasp(self, req):
+		# color = req.arg
+		color = 'pink'
 		grasped = False
+		self.canceled = False
+		# self.move_robot(MOVE_TO_POSE, self.limb_name, req.pose)
 		self.move_robot(OPEN_GRIPPER, self.limb_name, Pose())
 
 		grasp_z = -0.072
 
 		while not grasped and not rospy.is_shutdown():
+
+			if self.canceled:
+				return ActionResponse(False)
 
 			max_speed = .15
 			max_error = 330
@@ -145,9 +156,12 @@ class grasper:
 		print success
 		if not success:
 			self.moveVel(up_vec)
-			self.grasp(color)
+			self.moveVel(up_vec)
+			self.grasp(req)
 
 		cv2.destroyAllWindows()
+
+		return ActionResponse(success)
 
 	def confirmGrasp(self):
 		return self.gripper.gripping()

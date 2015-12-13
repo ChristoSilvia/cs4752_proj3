@@ -57,6 +57,8 @@ class thrower :
 		self.arm_kin = baxter_pykdl.baxter_kinematics(self.limb)
 
 		self.target_pose_pub = rospy.Publisher('zic_target_pose', PoseStamped, queue_size=1)
+
+		throw_service = createService('throw', Action, self.throw_srv, "")
         
 		# set the release pose
 		# release_pose = Pose()
@@ -84,6 +86,17 @@ class thrower :
 		# self.throw_2([0.5, 0.0, 0.1], 1.0, 0.0, math.radians(10))
 
 		#rospy.spin()
+
+	def throw_srv(self, req):
+		if self.canceled:
+			return ActionResponse(False)
+		self.moveToThrow(w1=-0.7)
+
+		if self.canceled:
+			return ActionResponse(False)
+		self.throw()
+
+		return ActionResponse(True)
 
 	def moveToThrow(self, e1=2.222, w0=1.7357, w1=0.0000) :
 		e1_range = [1.57, 2.22, 2.40] # elbow far or close to body
@@ -113,119 +126,117 @@ class thrower :
 		rospy.sleep(1)
 		self.gripper.command_position(0, block=True)
 
-	def throw_2(self, release_position, release_speed, release_elevation, release_azimuth):
-		link_len = 0.31
-		angular_speed = release_speed / link_len
+	# def throw_2(self, release_position, release_speed, release_elevation, release_azimuth):
+	# 	link_len = 0.31
+	# 	angular_speed = release_speed / link_len
 
-		throw = [0,0,0,0,0,-angular_speed,0]
-		zero = [0,0,0,0,0,0,0]
-		throw_dict = {}
-		zero_dict = {}
+	# 	throw = [0,0,0,0,0,-angular_speed,0]
+	# 	zero = [0,0,0,0,0,0,0]
+	# 	throw_dict = {}
+	# 	zero_dict = {}
 
-		for i in xrange(0,7) :
-			throw_dict[self.limb+'_'+joint_names[i]] = throw[i]
-			zero_dict[self.limb+'_'+joint_names[i]] = 0
+	# 	for i in xrange(0,7) :
+	# 		throw_dict[self.limb+'_'+joint_names[i]] = throw[i]
+	# 		zero_dict[self.limb+'_'+joint_names[i]] = 0
 
-		safty_buffer = math.radians(10.0)
-		w1_min = -1.571
-		w1_max = 2.094
+	# 	safty_buffer = math.radians(10.0)
+	# 	w1_min = -1.571
+	# 	w1_max = 2.094
 
-		back_swing = math.radians(60.0)
-		follow_through = math.radians(40.0)
-		open_gripper_time = 0.1
+	# 	back_swing = math.radians(60.0)
+	# 	follow_through = math.radians(40.0)
+	# 	open_gripper_time = 0.1
 
-		st = np.sin(release_azimuth)
-		ct = np.cos(release_azimuth)
-		cp = np.cos(release_elevation)
-		sp = np.sin(release_elevation)
-		rotation_matrix = np.array([[st*cp, -ct, st*sp, 0],
-									[-ct*cp, -st, -ct*sp, 0],
-									[sp, 0.0, -cp, 0],
-									[0,0,0,1]])
+	# 	st = np.sin(release_azimuth)
+	# 	ct = np.cos(release_azimuth)
+	# 	cp = np.cos(release_elevation)
+	# 	sp = np.sin(release_elevation)
+	# 	rotation_matrix = np.array([[st*cp, -ct, st*sp, 0],
+	# 								[-ct*cp, -st, -ct*sp, 0],
+	# 								[sp, 0.0, -cp, 0],
+	# 								[0,0,0,1]])
 			                    
-		ron = quaternion_from_matrix(rotation_matrix)
-		release_orientation = [ron[1], ron[2], ron[3], ron[0]]
+	# 	ron = quaternion_from_matrix(rotation_matrix)
+	# 	release_orientation = [ron[1], ron[2], ron[3], ron[0]]
 
-		target_pose = PoseStamped()
-		target_pose.header.frame_id = 'base'
-		target_pose.header.stamp = rospy.Time.now()
-		target_pose.pose = Pose(Vector3(release_position[0], release_position[1], release_position[2]),
-							Quaternion(ron[1], ron[2], ron[3], ron[0]))
+	# 	target_pose = PoseStamped()
+	# 	target_pose.header.frame_id = 'base'
+	# 	target_pose.header.stamp = rospy.Time.now()
+	# 	target_pose.pose = Pose(Vector3(release_position[0], release_position[1], release_position[2]),
+	# 						Quaternion(ron[1], ron[2], ron[3], ron[0]))
 
-		self.target_pose_pub.publish(target_pose)
-		print(target_pose)
-		success = self.move_robot(MOVE_TO_POSE, self.limb, target_pose.pose)
+	# 	self.target_pose_pub.publish(target_pose)
+	# 	print(target_pose)
+	# 	success = self.move_robot(MOVE_TO_POSE, self.limb, target_pose.pose)
 
 
-		print(release_position)
-		print(release_orientation)
+	# 	print(release_position)
+	# 	print(release_orientation)
 
-		#throw_beginning_joint_angles_list = self.arm_kin.inverse_kinematics(release_position, orientation=release_orientation)#, seed=[-0.8747, -0.8663, 0.4621, 2.222, 1.7357, 0.0000, 0.0000])
+	# 	#throw_beginning_joint_angles_list = self.arm_kin.inverse_kinematics(release_position, orientation=release_orientation)#, seed=[-0.8747, -0.8663, 0.4621, 2.222, 1.7357, 0.0000, 0.0000])
 
-		# set our limb's joint angle to be "back_swing" radians back from the endpoint
-		# NOT SURE ABOUT SIGN
-		#throw_beginning_joint_angles_list[5] -= back_swing
-		print("Beginning to move to joint positions")
-		#print(numpy_to_joint_dict(self.limb, throw_beginning_joint_angles_list))
-		#self.arm.move_to_joint_positions(numpy_to_joint_dict(self.limb, throw_beginning_joint_angles_list))
+	# 	# set our limb's joint angle to be "back_swing" radians back from the endpoint
+	# 	# NOT SURE ABOUT SIGN
+	# 	#throw_beginning_joint_angles_list[5] -= back_swing
+	# 	print("Beginning to move to joint positions")
+	# 	#print(numpy_to_joint_dict(self.limb, throw_beginning_joint_angles_list))
+	# 	#self.arm.move_to_joint_positions(numpy_to_joint_dict(self.limb, throw_beginning_joint_angles_list))
 
-		current_joints = self.arm.joint_angles()
+	# 	current_joints = self.arm.joint_angles()
 
-		# set release_angle as current joint angle
-		release_angle = current_joints[self.limb+'_w1']
+	# 	# set release_angle as current joint angle
+	# 	release_angle = current_joints[self.limb+'_w1']
 
-		# set open_angle to compensate for open gripper time
-		open_offset = open_gripper_time * angular_speed
-		open_angle = release_angle + open_offset
+	# 	# set open_angle to compensate for open gripper time
+	# 	open_offset = open_gripper_time * angular_speed
+	# 	open_angle = release_angle + open_offset
 
-		# set stop_angle allowing for follow through 
-		stop_angle = release_angle - follow_through
-		# make sure follow through won't hit joint limit
-		if stop_angle < w1_min + safty_buffer :
-			stop_angle = w1_min + safty_buffer
+	# 	# set stop_angle allowing for follow through 
+	# 	stop_angle = release_angle - follow_through
+	# 	# make sure follow through won't hit joint limit
+	# 	if stop_angle < w1_min + safty_buffer :
+	# 		stop_angle = w1_min + safty_buffer
 
-		opened = False
-		released = False
-		rate = rospy.Rate(300)
-		while True :
-			current_joints = self.arm.joint_angles()
-			current_angle = current_joints[self.limb+'_w1']
+	# 	opened = False
+	# 	released = False
+	# 	rate = rospy.Rate(300)
+	# 	while True :
+	# 		current_joints = self.arm.joint_angles()
+	# 		current_angle = current_joints[self.limb+'_w1']
 
-			# opens gripper slightly before release_angle to account for open gripper time
-			if not opened and open_angle > current_angle : 
-				self.gripper.command_position(100, block=False)
-				opened = True
-				# print "open_angle"
-				# print open_angle
-				# print "actual_open_angle"
-				# print current_angle
+	# 		# opens gripper slightly before release_angle to account for open gripper time
+	# 		if not opened and open_angle > current_angle : 
+	# 			self.gripper.command_position(100, block=False)
+	# 			opened = True
+	# 			# print "open_angle"
+	# 			# print open_angle
+	# 			# print "actual_open_angle"
+	# 			# print current_angle
 
-			# should release at correct pos/vel
-			if not released and release_angle > current_angle :
-				actual_release_pos = np.array(self.arm.endpoint_pose()['position'])
-				# actual_release_vel = np.array(self.arm.endpoint_velocity()['linear'])
-				actual_release_speed = self.arm.joint_velocities()[self.limb+'_w1'] * link_len
-				released = True
-				print "actual_release_pos"
-				print actual_release_pos
-				print "actual_release_speed"
-				print actual_release_speed
+	# 		# should release at correct pos/vel
+	# 		if not released and release_angle > current_angle :
+	# 			actual_release_pos = np.array(self.arm.endpoint_pose()['position'])
+	# 			# actual_release_vel = np.array(self.arm.endpoint_velocity()['linear'])
+	# 			actual_release_speed = self.arm.joint_velocities()[self.limb+'_w1'] * link_len
+	# 			released = True
+	# 			print "actual_release_pos"
+	# 			print actual_release_pos
+	# 			print "actual_release_speed"
+	# 			print actual_release_speed
 
-			# stops at the stop_angle
-			if stop_angle > current_angle :
-				self.arm.set_joint_velocities(zero_dict)
-				break
+	# 		# stops at the stop_angle
+	# 		if stop_angle > current_angle :
+	# 			self.arm.set_joint_velocities(zero_dict)
+	# 			break
 
-			self.arm.set_joint_velocities(throw_dict)
-			rate.sleep()
-
-        
+	# 		self.arm.set_joint_velocities(throw_dict)
+	# 		rate.sleep()
 
 
 	def throw(self) :
 		# test throw params
 		release_pos = Point(0.573, 0.081, 0.036)
-		release_vel = Vector3(100.00, 0.00, 0.00)
+		release_vel = Vector3(1.50, 0.00, 0.00)
 		
 		safty_buffer = math.radians(10.0)
 		w1_min = -1.571

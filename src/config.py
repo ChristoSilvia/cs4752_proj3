@@ -12,14 +12,11 @@ MOVE_TO_POSE = 2
 MOVE_TO_POS = 3
 MOVE_TO_POSE_INTERMEDIATE = 4
 
-
 BLOCK = 10
 GRAB = 13
 THROW = 14
 CHECK_BLOCKS = 15
 MOVE_BLOCKS = 16
-
-
 
 def createServiceProxy(service,srv_type,limb):
 	name = ""
@@ -48,6 +45,9 @@ def quaternion_to_numpy(q):
 
 def numpy_to_vector3(n):
 	return Vector3(n[0],n[1],n[2])
+
+def numpy_to_point(n):
+	return Point(n[0],n[1],n[2])
 
 def numpy_to_joint_dict(limb, data):
 	joint_dict = {}

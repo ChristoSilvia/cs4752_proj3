@@ -256,7 +256,7 @@ class Vision:
 					distance = self.pixel_radius / radius
 				obj_pose = self.project((bi[0], bi[1]), distance, self.rgb_image.shape[1], self.rgb_image.shape[0])
 				
-	 		else :
+			else :
 				distance = self.pixel_radius / radius
 				obj_pose = self.project((bi[0], bi[1]), distance, self.rgb_image.shape[1], self.rgb_image.shape[0])
 			try:
@@ -313,7 +313,6 @@ class Vision:
 		blobsFound = []
 		cnts = cv2.findContours(mask.copy(), cv2.RETR_EXTERNAL,cv2.CHAIN_APPROX_SIMPLE)[-2]
 
-		# use shape of obj to get similarity
 		h = self.rgb_image.shape[0]
 		w = self.rgb_image.shape[1]
 		center_img = np.array([w/2.,h/2.])
@@ -323,6 +322,7 @@ class Vision:
 
 		def get_score(c):
 			try:
+				# use shape of the obj to get similarity
 				similarity = cv2.matchShapes(shape,c,1,0.0) + 1
 				area = cv2.contourArea(c)
 				M = cv2.moments(c)
@@ -355,6 +355,7 @@ class Vision:
 				
 				radius = math.sqrt(cv2.contourArea(c))
 				if radius > 5 and area > 150 and similarity < 10.0:
+					# get the centroid
 					M = cv2.moments(c)
 					cx = int(M['m10']/M['m00'])
 					cy = int(M['m01']/M['m00'])

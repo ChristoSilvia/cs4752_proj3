@@ -64,6 +64,7 @@ add_service_files(
   EndEffectorPosition.srv
   EndEffectorVelocity.srv
   MoveRobot.srv
+  Action.srv
   SetNormalVec.srv
   SetParameters.srv
   BlockPoses.srv

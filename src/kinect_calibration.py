@@ -29,14 +29,17 @@ class kinect_calibration:
 		self.transform_listener = tf.TransformListener()
 		self.tf_br = tf.TransformBroadcaster()
 
-		req = CalibrateKinect()
-		req.calibration_points = ["BOTTOM_MIDDLE", "BOTTOM_CORNER", "TOP_MIDDLE", "TOP_CORNER"]
-		
 		calibrate_kinect = createService("calibrate_kinect", CalibrateKinect, self.calibrate, "")
-		self.calibrate(req)
+
+		get_desired_block_poses = createService("get_desired_block_poses", BlockPoses, self.get_desired_block_poses, "")
+		check_blocks = createService("check_blocks", Action, self.check_blocks, "")
+
+		# req = CalibrateKinect()
+		# req.calibration_points = ["BOTTOM_MIDDLE", "BOTTOM_CORNER", "TOP_MIDDLE", "TOP_CORNER"]
+		# self.calibrate(req)
 
 		self.ts = None
-		self.rate = rospy.Rate(10)
+		self.rate = rospy.Rate(2)
 		while not rospy.is_shutdown():
 			if self.ts != None:
 				self.tf_br.sendTransform(t)
@@ -105,6 +108,18 @@ class kinect_calibration:
 			cv2.circle(self.draw_image, (int(x), int(y)), int(self.radius), (0,255,255),2)
 			self.last_point = [x,y]
 
+	def get_desired_block_poses(self, req):
+		block_point_names = ["Block %d" % (i+1) for i in range(0,req.num_blocks)]
+		desired_block_points = self.get_input_points(block_point_names)
+
+		desired_block_poses = []
+		for point in desired_block_points:
+			p = Pose()
+			p.position = numpy_to_point(point)
+			desired_block_poses.append(p)
+
+		return BlockPosesResponse(desired_block_poses)
+
 	def calibrate(self, req):
 		calibration_points = req.calibration_points
 		base_points = self.get_base_frame_points()
@@ -125,26 +140,6 @@ class kinect_calibration:
 			base_pt = self.KinectToBasePoint(kinect_transform, kinect_pt[0],kinect_pt[1],kinect_pt[2])
 			self.playing_field[point_name] = base_pt
 		print self.playing_field
-
-		# vec1 = point_pos[1] - point_pos[0]
-		# vec2 = point_pos[2] - point_pos[0]
-
-		# self.kinect_norm = np.cross(vec1, vec2)
-		# self.set_plane_normal_srv(Vector3(self.plane_norm[0], self.plane_norm[1], self.plane_norm[2]))
-		# # plane_origin = np.average(point_pos, axis=0)
-		# plane_origin = point_pos[0]
-
-		# self.plane_translation = translation_matrix(plane_origin)
-
-		# x_plane = vec1/np.linalg.norm(vec1)
-		# y_plane = np.cross(self.plane_norm, vec1)
-		# y_plane = y_plane/np.linalg.norm(y_plane)
-		# z_plane = self.plane_norm/np.linalg.norm(self.plane_norm)
-		# #need rotation to make norm the z vector
-		# self.plane_rotation = np.array([x_plane, y_plane, z_plane]).T
-
-		# self.plane_rotation = np.append(self.plane_rotation,[[0,0,0]],axis=0)
-		# self.plane_rotation = np.append(self.plane_rotation,[[0],[0],[0],[1]],axis=1)
 
 		print "#################################"
 		print "Finished Calibrating Playing Field and Kinect Frame"
@@ -173,14 +168,14 @@ class kinect_calibration:
 		calibration_points = ["BOTTOM_MIDDLE", "BOTTOM_CORNER", "TOP_MIDDLE", "TOP_CORNER"]
 		# calibration_points = ["BOTTOM_MIDDLE", "BOTTOM_CORNER", "BALL_START", "TOP_CORNER", "BOTTOM_B_NEAR_GOAL", "TOP_B_NEAR_GOAL"]
 
-		kinect_points = self.get_calibration_points(calibration_points)
+		self.kinect_points = self.get_input_points(calibration_points)
 		print "kinect_points"
-		print kinect_points
+		print self.kinect_points
 
 		point_pos = {}
 		for i in range(0,len(calibration_points)):
 			point_name = calibration_points[i]
-			point_pos[point_name] = vector3_to_numpy(kinect_points[i])
+			point_pos[point_name] = vector3_to_numpy(self.kinect_points[i])
 		return point_pos
 
 
@@ -215,12 +210,12 @@ class kinect_calibration:
 		# print "base_coords: {0}".format(base_coords)
 		return base_coords
 
-	def get_calibration_points(self, points):
+	def get_input_points(self, points):
 		# points = req.point_names
 		self.bridge = CvBridge()
 
 		cv2.startWindowThread()
-		self.pointstring = 'Playing Field Calibration Points'
+		self.pointstring = 'Input Points'
 		cv2.namedWindow(self.pointstring)
 
 		cv2.setMouseCallback(self.pointstring, self.onmouse)
@@ -230,7 +225,7 @@ class kinect_calibration:
 
 		self.last_point = []
 
-		self.kinect_points = []
+		input_points = []
 		point_count = 0
 		prompt = True
 
@@ -254,7 +249,7 @@ class kinect_calibration:
 			# display the image and wait for a keypress
 			cv2.imshow(self.pointstring,self.draw_image)
 			if prompt:
-				print "Please click on the %s and press space" % point_name
+				print "Please click on %s and press space" % point_name
 				prompt = False
 
 			key = cv2.waitKey(1) & 0xFF
@@ -268,7 +263,7 @@ class kinect_calibration:
 				self.draw_image = self.rgb_image.copy()
 				world_point = self.screenToWorld(x,y)
 
-				self.kinect_points.append(world_point)
+				input_points.append(world_point)
 				point_count += 1
 
 				print point_name
@@ -278,7 +273,7 @@ class kinect_calibration:
 		# destroy window
 		cv2.destroyAllWindows()
 
-		return self.kinect_points
+		return input_points
 
 	def screenToWorld(self, x,y) :
 		bi = [x,y]
@@ -286,12 +281,12 @@ class kinect_calibration:
 			distance = self.depth_image[int(bi[1]), int(bi[0])]
 			if not math.isnan(distance) :
 				world_point = self.projectDepth((int(bi[0]), int(bi[1])), distance, self.rgb_image.shape[1], self.rgb_image.shape[0])
- 			else :
- 				"error nan"
- 		else :
- 			"error no depth image"
+			else :
+				"error nan"
+		else :
+			"error no depth image"
 
- 		return world_point.position
+		return world_point.position
 
 	def depthcallback(self,data):
 		try:
@@ -332,4 +327,4 @@ def main(args):
 	cv2.destroyAllWindows()
 
 if __name__ == '__main__':
-    main(sys.argv)
+	main(sys.argv)
