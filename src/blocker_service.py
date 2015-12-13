@@ -11,6 +11,7 @@ import sys
 import rospy
 from geometry_msgs.msg import *
 from std_msgs.msg import *
+from cs4752_proj3.srv import MoveRobotResponse, MoveRobot
 
 # BAXTER
 import baxter_interface
@@ -87,13 +88,8 @@ class Blocker():
 		# # print("Finished Minimizing Joint Angle Error")
 
 		# #self.limb.move_to_joint_positions(goal_position)
-		print("Beginning to Move to Goal Pose")
-		self.limb.move_to_joint_positions(
-			config.numpy_to_joint_dict(self.limb_name, goal_joint_values),
-			threshold=self.joint_position_tolerance)
-		print("Completed Moving to Goal Pose")
 
-		# END OF IK
+				# END OF IK
 
 		endpoint_pose = self.limb.endpoint_pose()
 		self.desired_position = config.vector3_to_numpy(endpoint_pose['position'])
@@ -104,28 +100,29 @@ class Blocker():
 			BallPositionVelocity, 
 			self.handle_position_velocity)
 
+		createService('block', MoveRobot, self.block, "")
+
 
 		self.kp = np.array([2.65, 1.3, 0.9, 0.5, 0.5, 0.5])
-		self.ki = np.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0])
+		self.ki = np.array([0.0, 1.5, 0.4, 0.0, 0.0, 0.0])
 		self.kd = np.array([4.2, 0.0, 0.0, 0.0, 0.0, 0.0])
 
-		ts = []
-		self.ts = []
-		xs = []
-		ys = []
-		zs = []
-		bs = []
-		self.unnormalized_ball_poses = []
-		self.reflected_ball_poses = []
+	def block(self, args):
+		self.moving_away = False
+
+		self.limb.move_to_joint_positions(
+			config.numpy_to_joint_dict(self.limb_name, goal_joint_values),
+			threshold=self.joint_position_tolerance)
+
+
 
 		integral = np.zeros(6)
-
 		start_time = rospy.get_time()
 		self.start_time = rospy.get_time()
 		last_time = start_time
 		error = np.zeros(6)
 		last_error = error
-		while not rospy.is_shutdown()  :
+		while not rospy.is_shutdown() and not self.moving_away:
 			jacobian = np.array(self.limb_kin.jacobian())
 			jacobian_pinv = np.linalg.pinv(jacobian)
 
@@ -143,23 +140,12 @@ class Blocker():
 				orientation_error = relative_orientation_angle*relative_orientation_axis
 				error[3:] = orientation_error
 			
-			bs.append(self.desired_position[0] - self.center_of_goal[0])
-
-			# print "bs"
-			# print type(bs[0])
-			# print len(bs)
-
 			current_time = rospy.get_time()
 			time_interval = current_time - last_time
 			integral += error * time_interval
 			last_time = current_time
 			derivative = (error - last_error)/time_interval
 			last_error = error
-	
-			ts.append(current_time - start_time)
-			xs.append(error[0])
-			ys.append(error[1])
-			zs.append(error[2])
 	
 			desired_twist = np.empty(6)
 			desired_twist = - self.kp * error - self.ki * integral - self.kd * derivative
@@ -169,20 +155,7 @@ class Blocker():
 			self.limb.set_joint_velocities(
 				config.numpy_to_joint_dict(self.limb_name, joint_velocities))
 
-
-		plt.figure()
-		plt.plot(ts, xs, color="red")
-		plt.plot(ts, ys, color="green")
-		plt.plot(ts, zs, color="blue")
-		plt.grid(True)
-		plt.figure()
-		plt.plot(ts, bs, color="brown")
-		plt.plot(self.ts, self.unnormalized_ball_poses, color="orange")
-		plt.plot(self.ts, self.reflected_ball_poses, color="black")
-		plt.axis([np.min(self.ts), np.max(self.ts), np.min(self.reflected_ball_poses)-0.05, np.max(self.reflected_ball_poses)+0.05])
-		plt.grid(True)
-		plt.show()
-		rospy.spin()
+		return MoveRobotResponse(True)
 
 	def handle_position_velocity(self, data):
 		# print("Recieved Data")
@@ -202,6 +175,7 @@ class Blocker():
 			self.desired_position[0] = self.center_of_goal[0]
 			self.desired_position[1] = self.center_of_goal[1]
 			self.desired_position[2] = self.center_of_goal[2]
+			self.moving_away = True
 		else:
 			if self.limb_name == "left":
 				ball_tan = ball_velocity[0]/ball_velocity[1]
@@ -267,7 +241,7 @@ if __name__ == '__main__':
 	print("Initializing Blocker for {0} arm".format(limb_name))
 	# POSITION OF GOAL
 	left_goal = np.array([0.58,0.64,-0.06])
-	right_goal = np.array([0.58, -0.66, -0.06])
+	right_goal = np.array([0.58, -0.74, -0.06])
 	if limb_name == "left":
 		Blocker(limb_name, left_goal)
 	else:

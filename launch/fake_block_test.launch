@@ -1,7 +1,7 @@
 <launch>
 	<!-- <param name="num_blocks" value="3" type="int"/> -->
 	<arg name="calibrate" default="false"/>
-	<param name="limb" value="left" />
+	<param name="limb" value="right" />
 
     <!-- <node ns="hand" name="vision" pkg="cs4752_proj3" type="vision.py" output="screen"></node> -->
     <!-- <node ns="kinect" name="vision" pkg="cs4752_proj3" type="vision.py" output="screen"></node> -->
