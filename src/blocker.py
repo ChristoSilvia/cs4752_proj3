@@ -41,38 +41,59 @@ class Blocker():
 		self.field_width = 0.6858
 		self.field_length = 1.3843
 		self.goal_width = 0.29845
-		self.gripper_width = 0.04
+		self.gripper_width = 0.05
 		self.gripper_depth = 0.03
 
 		self.y_velocity_cutoff = 5e-3
-		self.joint_position_tolerance = 0.02
+		self.joint_position_tolerance = 0.02 
 		
 		self.center_of_goal = center_of_goal
 
 		# BEGINNING OF IK
 
-		# if self.limb_name == "left":
-		# 	wrist_angle = -0.25*np.pi
-		# else:
-		# 	wrist_angle = 0.75*np.pi
-		# self.blocking_orientation = np.array([np.sin(wrist_angle), np.cos(wrist_angle), 0.0, 0.0])
+		if self.limb_name == "left":
+			theta = -0.25*np.pi
+		else:
+			theta = 0.75*np.pi
 
-		# goal_joint_values = None
-		# while goal_joint_values is None:
-		# 	print("Trying IK")
-		# 	goal_joint_values = self.limb_kin.inverse_kinematics(
-		# 		list(self.center_of_goal),
-		# 		orientation=list(self.blocking_orientation),
-		# 		seed=list(config.joint_dict_to_numpy(self.limb_name, self.limb.joint_angles())))
-			
-		# self.limb.move_to_joint_positions(goal_position)
-		# self.limb.move_to_joint_positions(
-		# 	goal_joint_values,
-		# 	threshold=self.joint_position_tolerance)
+		self.blocking_orientation = np.array([np.sin(theta), np.cos(theta), 0.0, 0.0])
+
+		goal_joint_values = None
+		while goal_joint_values is None and not rospy.is_shutdown():
+			print("Trying IK")
+			goal_joint_values = np.array(self.limb_kin.inverse_kinematics(
+				list(self.center_of_goal),
+				orientation=list(self.blocking_orientation),
+				seed=list(config.joint_dict_to_numpy(self.limb_name, self.limb.joint_angles()))))
+		print("Found IK Solution")
+
+		# eps = 1e-3
+		# joint_angle_error_index = np.argmin([np.abs(goal_joint_values[6] - 0.5*np.pi), 
+		# 	np.abs(goal_joint_values[6] + 0.5*np.pi)])
+		# joint_angle_error = [goal_joint_values[6] - 0.5*np.pi, goal_joint_values[6] + 0.5*np.pi][joint_angle_error_index]
+		# print(goal_joint_values)
+		# print("Joint Angle Error is: {0}".format(joint_angle_error))
+		# while not rospy.is_shutdown() and np.abs(joint_angle_error) > self.joint_position_tolerance:
+		# 	print("Joint Angle Error is: {0}".format(joint_angle_error))
+		# 	jacobian = np.array(self.limb_kin.jacobian(joint_values=config.numpy_to_joint_dict(self.limb_name, goal_joint_values)))
+		# 	null_joint_movement = config.null(jacobian)[1][:,0]
+
+		# 	minimizing_joint_velocity = - null_joint_movement * (joint_angle_error/null_joint_movement[6])
+		# 	goal_joint_values += minimizing_joint_velocity
+		# 	joint_angle_error_index = np.argmin([np.abs(goal_joint_values[6] - 0.5*np.pi), 
+		# 		np.abs(goal_joint_values[6] + 0.5*np.pi)])
+		# 	joint_angle_error = [goal_joint_values[6] - 0.5*np.pi, goal_joint_values[6] + 0.5*np.pi][joint_angle_error_index]
+		# print("Finished Minimizing Joint Angle Error")
+
+		#self.limb.move_to_joint_positions(goal_position)
+		self.limb.move_to_joint_positions(
+			config.numpy_to_joint_dict(self.limb_name, goal_joint_values),
+			threshold=self.joint_position_tolerance)
 
 		# END OF IK
 
 		self.desired_position = config.vector3_to_numpy(self.limb.endpoint_pose()['position'])
+		
 
 		rospy.Subscriber(
 			'/ball_position_velocity', 
@@ -81,20 +102,25 @@ class Blocker():
 
 		self.test_block_pub = rospy.Publisher('/test_block_pos', Float64,queue_size=10) 
 
-		# x oscillates at 5.3
+		# x oscillates at 5.3)
+
 		self.kp = np.array([2.65, 1.3, 0.9])
 		self.ki = np.array([0.0, 1.5, 0.4])
 		self.kd = np.array([4.2, 0.0, 0.0])
 
 		ts = []
+		self.ts = []
 		xs = []
 		ys = []
 		zs = []
 		bs = []
+		self.unnormalized_ball_poses = []
+		self.reflected_ball_poses = []
 
 		integral = np.zeros(3)
 
 		start_time = rospy.get_time()
+		self.start_time = rospy.get_time()
 		last_time = start_time
 		last_error = config.vector3_to_numpy(self.limb.endpoint_pose()['position']) - self.desired_position
 		while not rospy.is_shutdown()  :
@@ -114,7 +140,6 @@ class Blocker():
 			time_interval = current_time - last_time
 			integral += error * time_interval
 			last_time = current_time
-	
 			derivative = (error - last_error)/time_interval
 			last_error = error
 	
@@ -129,8 +154,8 @@ class Blocker():
 	
 			joint_velocities = np.dot(jacobian_pinv, desired_twist)
 	
-			# self.limb.set_joint_velocities(
-			# 	config.numpy_to_joint_dict(self.limb_name, joint_velocities))
+			self.limb.set_joint_velocities(
+				config.numpy_to_joint_dict(self.limb_name, joint_velocities))
 
 
 		plt.figure()
@@ -140,51 +165,75 @@ class Blocker():
 		plt.grid(True)
 		plt.figure()
 		plt.plot(ts, bs, color="brown")
+		plt.plot(self.ts, self.unnormalized_ball_poses, color="orange")
+		plt.plot(self.ts, self.reflected_ball_poses, color="black")
+		plt.axis([np.min(self.ts), np.max(self.ts), np.min(self.reflected_ball_poses)-0.05, np.max(self.reflected_ball_poses)+0.05])
 		plt.grid(True)
 		plt.show()
+		rospy.spin()
 
 	def handle_position_velocity(self, data):
-		print("Recieved Data")
-		print("=============")
+		# print("Recieved Data")
+		# print("=============")
 		ball_position = config.vector3_to_numpy(data.position)
 		ball_velocity = config.vector3_to_numpy(data.velocity)
-		print("Ball Position: {0}".format(ball_position))
-		print("Ball Velocity: {0}".format(ball_velocity))
+		# print("Ball Position: {0}".format(ball_position))
+		# print("Ball Velocity: {0}".format(ball_velocity))
 		
+		self.ts.append(rospy.get_time() - self.start_time)
+
 		if (ball_velocity[1] < self.y_velocity_cutoff and self.limb_name == "left") or (ball_velocity[1] > -self.y_velocity_cutoff and self.limb_name == "right"):
 		# if False:
-			print("Ball is Moving Away, going to Guard Position")
+			# print("Ball is Moving Away, going to Guard Position")
+			self.unnormalized_ball_poses.append(self.center_of_goal[0])
+			self.reflected_ball_poses.append(self.center_of_goal[0])
 			self.desired_position[0] = self.center_of_goal[0]
 			self.desired_position[1] = self.center_of_goal[1]
 			self.desired_position[2] = self.center_of_goal[2]
 		else:
 			if self.limb_name == "left":
 				ball_tan = ball_velocity[0]/ball_velocity[1]
+
 			else:
 				ball_tan = ball_velocity[0]/(-ball_velocity[1])
 
 			# print ball_tan
 
 			dist_to_goal = np.abs(self.center_of_goal[1] - ball_position[1]) - self.gripper_depth
+			# print("Ball Y Distance to Goal: {0}".format(dist_to_goal))
 
-			no_walls_ball_hit_location = ball_tan*dist_to_goal + ball_position[0]
+			no_walls_ball_hit_offset = ball_tan*dist_to_goal + (ball_position[0] - self.center_of_goal[0])
+
+
+			self.unnormalized_ball_poses.append(no_walls_ball_hit_offset + self.center_of_goal[0])
+
+			no_walls_ball_hit_sign = np.sign(no_walls_ball_hit_offset)
+			absed_modded_no_walls_ball_hit_offset = np.abs(no_walls_ball_hit_offset) #% 2.0*self.field_width
+
+			if absed_modded_no_walls_ball_hit_offset > 0.5*self.field_width and absed_modded_no_walls_ball_hit_offset < 1.5*self.field_width:
+				ball_hit_offset = no_walls_ball_hit_sign*(self.field_width - absed_modded_no_walls_ball_hit_offset)
+			elif absed_modded_no_walls_ball_hit_offset > 1.5*self.field_width:
+				ball_hit_offset = no_walls_ball_hit_sign*(2.0*self.field_width - absed_modded_no_walls_ball_hit_offset)
+			else:
+				ball_hit_offset = no_walls_ball_hit_sign*absed_modded_no_walls_ball_hit_offset
+
 
 			# print type(no_walls_ball_hit_location)
 			# print no_walls_ball_hit_location
 			# self.test_block_pub.publish(Float64(no_walls_ball_hit_location))
 
-			gripper_x_target = np.clip(
-				no_walls_ball_hit_location,
-				self.center_of_goal[0] - 0.5*self.goal_width - self.gripper_depth,
-				self.center_of_goal[0] + 0.5*self.goal_width + self.gripper_depth)
+			gripper_x_offset = np.clip(
+				ball_hit_offset,
+				-0.5*self.goal_width + self.gripper_depth,
+				0.5*self.goal_width - self.gripper_depth)
 
-			# print gripper_x_target
+			self.reflected_ball_poses.append(gripper_x_offset + self.center_of_goal[0])
 
 			# self.desired_position = self.center_of_goal
-			self.desired_position[0] = gripper_x_target
+			self.desired_position[0] = self.center_of_goal[0] + gripper_x_offset
 			self.desired_position[1] = self.center_of_goal[1]
 			self.desired_position[2] = self.center_of_goal[2]
-		print("Desired Position: {0}".format(self.desired_position))
+		# print("Desired Position: {0}".format(self.desired_position))
 			
 
 		  
@@ -197,6 +246,7 @@ if __name__ == '__main__':
 	limb_name = None
 	try:
 		limb_name = rospy.get_param("limb")
+		# pri
 	except:
 		"no limb param"
 	if limb_name is None:
@@ -204,5 +254,6 @@ if __name__ == '__main__':
 	assert (limb_name == "left" or limb_name == "right")
 	print("Initializing Blocker for {0} arm".format(limb_name))
 	# POSITION OF GOAL
-	left_goal = np.array([0.592,0.641,-0.0687])
-	Blocker(limb_name, left_goal) 
+	left_goal = np.array([0.58,0.64,-0.06])
+	right_goal = np.array([0.58, -0.74, -0.06])
+	Blocker(limb_name, right_goal) 

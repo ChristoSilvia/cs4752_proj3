@@ -21,12 +21,24 @@ class DetermineVelocities:
 			t = rospy.Time.now().to_sec() - self.init_time
 			# print t
 
-			ry = .10
-			rx = .30
-			x = rx * np.cos(t)
-			y = ry * np.sin(t)
-			dx = rx * -np.sin(t)
-			dy = ry * np.cos(t)
+			# v = 0.1
+			# ry = .10
+			# rx = .10
+			# x = rx * np.cos(v*t)
+			# y = ry * np.sin(v*t)
+			# dx = rx * -np.sin(v*t)*v
+			# dy = ry * np.cos(v*t)*v
+
+			# x = -(2.0/3.0)*np.exp((t % 0.6) - 0.3)/(1.0 + np.exp((t % 0.6) - 0.3))
+			# y = t % 0.6
+			# dx = -(2.0/3.0)*np.exp((t % 0.6) - 0.3)/(1.0 + np.exp((t % 0.6) - 0.3))**2
+			# dy = 1.0
+
+			v = 0.5
+			x = 0.0
+			y = 0.0
+			dx = np.cos(v*t)
+			dy = np.sin(v*t)
 
 			center_of_field = Point(0.5851, 0.0545, -0.0805)
 
