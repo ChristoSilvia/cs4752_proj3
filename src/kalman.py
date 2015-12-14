@@ -25,9 +25,10 @@ class DetermineVelocities:
 		rospy.spin()
 
 	def handle_data(self, data):
-		#print("Recieved Data")
+		print("Recieved Data")
 		t = data.header.stamp.secs + 1e-9*data.header.stamp.nsecs
 		position = np.array([data.pose.position.x, data.pose.position.y])
+		print("Ball Position: {0}".format(position))
 		state = np.array([data.pose.position.x, data.pose.position.y, 0.0, 0.0])
 
 		if self.state is None:
@@ -38,12 +39,15 @@ class DetermineVelocities:
 			self.previous_time = t
 		else:
 			delta_t = t - self.previous_time
+			self.previous_time = t
 
 			update_matrix = np.array([
 				[1.0, 0.0, delta_t, 0.0],
 				[0.0, 1.0, 0.0, delta_t],
 				[0.0, 0.0, 1.0, 0.0],
 				[0.0, 0.0, 0.0, 1.0]])
+
+			print("Update Matrix: {0}".format(update_matrix))
 
 			offset = np.array([0.0, 0.0, 0.0, 0.0])
 
@@ -62,21 +66,24 @@ class DetermineVelocities:
 			# predict
 			predicted_state = np.dot(update_matrix, self.state) + offset
 			predicted_covariance = np.dot(update_matrix,np.dot(self.covariance, update_matrix.T)) + model_noise_matrix
+			print("Predicted State: {0}".format(predicted_state))
+			print("Predicted Covariance: {0}".format(predicted_covariance))
 			
 			# compute error
 			measurement = np.empty(4)
 			measurement[:2] = position
 			measurement[2:] = self.previous_position
+			print("Measured State: {0}".format(measurement))
 			error_in_mean = measurement - np.dot(state_to_measurement_matrix, predicted_state)
 			error_in_covariance = np.dot(state_to_measurement_matrix, 
 				np.dot(predicted_covariance, state_to_measurement_matrix.T)) + self.measurement_noise
 
 			# compute kalman gain
 			kalman_gain = np.dot(predicted_covariance, 
-				np.dot(state_to_measurement_matrix, np.linalg.inv(error_in_covariance)))
+				np.dot(state_to_measurement_matrix.T, np.linalg.inv(error_in_covariance)))
 
 			self.state = predicted_state + np.dot(kalman_gain, error_in_mean)
-			self.covariance = np.dot(np.eye(4) - np.dot(kalman_gain, self.measurement), predicted_covariance)
+			self.covariance = np.dot(np.eye(4) - np.dot(kalman_gain, state_to_measurement_matrix), predicted_covariance)
 			
 			self.pub.publish(BallPositionVelocity(t, Point(self.state[0], self.state[1], 0), Point(self.state[2], self.state[3], 0)))
 			self.previous_position = position
