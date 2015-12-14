@@ -9,6 +9,10 @@ import rospy
 from geometry_msgs.msg import Point, PoseStamped
 from cs4752_proj3.msg import BallPositionVelocity
 
+rolling_threshold = 0.05
+r_block
+center_of_field = np.array([0.6, 0.0, -0.08])
+
 class DetermineVelocities:
 	def __init__(self):
 		rospy.init_node('ball_position_velocity_kalman_filter')
@@ -21,6 +25,11 @@ class DetermineVelocities:
 		self.pub = rospy.Publisher('/ball_position_velocity', BallPositionVelocity, 
 			queue_size=10) 
 		rospy.Subscriber('/ball_pose_kinect', PoseStamped, self.handle_data)
+
+        self.block_poses = [ np.array([ 0.6, 0.2, -0.08]),
+            np.array([0.5, 0.3, -0.08]) ]
+        self.last_min_block_distance = float('inf')
+
 
 		rospy.spin()
 
@@ -57,11 +66,19 @@ class DetermineVelocities:
 				[1.0, 0.0, -delta_t, 0.0],
 				[0.0, 1.0, 0.0, -delta_t]])
 
-			model_noise_matrix = np.array([
-				[0.005**2, 0.0, 0.0, 0.0],
-				[0.0, 0.005**2, 0.0, 0.0],
-				[0.0, 0.0, 0.01**2, 0.0],
-				[0.0, 0.0, 0.0, 0.01**2]])
+            min_block_distance = min([ np.linalg.norm(block[:2] - position) for block in self.block_poses ])
+            if (min_block_distance < block_radius) and (last_min_block_distance > block_radius):
+                model_noise_matrix = np.array([
+                    [0.02**2, 0.0, 0.0, 0.0],
+                    [0.0, 0.02**2, 0.0, 0.0],
+                    [0.0, 0.0, 0.5**2, 0.0],
+                    [0.0, 0.0, 0.0, 0.5**2]])
+            else:         
+    			model_noise_matrix = np.array([
+	    			[0.005**2, 0.0, 0.0, 0.0],
+		    		[0.0, 0.005**2, 0.0, 0.0],
+			    	[0.0, 0.0, 0.01**2, 0.0],
+				    [0.0, 0.0, 0.0, 0.01**2]])
 
 			# predict
 			predicted_state = np.dot(update_matrix, self.state) + offset

@@ -82,11 +82,11 @@ class thrower :
 		# self.move_robot(CLOSE_GRIPPER, self.limb, Pose())
 		print "-----------CURRENT ARM POSITIONS------------"
 		print self.arm.joint_angles()
-		if True:
-			self.testLeftArmInitialPositions(43)
+		if False:
+			self.testLeftArmInitialPositions(45)
 		else :
 			self.gripper.command_position(100, block=True)
-			rospy.sleep(2)
+			rospy.sleep(4)
 			self.gripper.command_position(0, block=True)
 		# throw the ball
 		self.throw()
@@ -139,6 +139,9 @@ class thrower :
 			new_pose = {'w0': -2.2434468997192383, 'w1': 0.06442719301757813, 'w2': 0.046786413977050786, 'e0': -2.7626993958251953, 'e1': 0.9767622655700684, 's0': -0.1587670113647461, 's1': -0.5437961886840821}
 		elif index == 44 : #tested once, centered
 			new_pose = {'w0': -2.299053703216553, 'w1': 0.46786413977050784, 'w2': 0.00038349519653320315, 'e0': -2.6507187984375, 'e1': 1.231019580871582, 's0': -0.21437381486206056, 's1': -0.2918398445617676}
+		elif index == 45 : #veers right
+			new_pose = {'w0': -2.4708595512634277, 'w1': -0.01457281746826172, 'w2': 0.027611654150390626, 'e0': -2.625791610662842, 'e1': 0.5426457030944825, 's0': -0.08858739039916992, 's1': -0.796519523199463}
+
 
 
 
