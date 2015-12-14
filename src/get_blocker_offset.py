@@ -16,6 +16,8 @@ import baxter_interface
 # Parameters
 no_blocking_cutoff_velocity = 0.01
 
+field_center = np.array([0.54, 0.0, -0.08])
+
 class GetBlockerOffset:
 	def __init__(self, limb_name):
 		self.limb_name = limb_name

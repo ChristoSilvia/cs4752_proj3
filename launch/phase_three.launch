@@ -1,6 +1,7 @@
 <launch>
 	<param name="limb" value="right">
 
+	<node name="joint_action_server" pkg="cs4752_proj3" type="joint_action_server.py" output="screen"></node>
 	<node name="averager" pkg="cs4752_proj3" type="averager.py" output="screen"></node>
 	<node ns="kinect" name="vision" pkg="cs4752_proj3" type="vision.py" output="screen"></node>
 	<node name="get_blocker_offset" pkg="cs4752_proj3" type="get_blocker_offset.py"></node>

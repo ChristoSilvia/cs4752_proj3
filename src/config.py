@@ -114,3 +114,15 @@ def null(a, rtol=1e-5):
     rank = (s > rtol*s[0]).sum()
     return rank, v[rank:].T.copy()
 
+def get_angular_error(desired, actual):
+	relative_orientation = config.multiply_quaternion(actual, 
+		config.invert_unit_quaternion(desired))
+	relative_orientation_angle = 2.0*np.arccos(relative_orientation[3])
+	if relative_orientation_angle < 1e-6:
+		return np.zeros(3)
+	else:
+		relative_orientation_axis = relative_orientation[:3]/np.sin(0.5*relative_orientation_angle)
+		orientation_error = relative_orientation_angle*relative_orientation_axis
+		return orientation_error
+	
+

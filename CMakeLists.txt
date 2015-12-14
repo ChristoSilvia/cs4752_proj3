@@ -71,6 +71,7 @@ add_service_files(
   BlockPoses.srv
   CalibrateKinect.srv
   BlockingPosition.srv
+  Reset.srv
 )
 
 ## Generate actions in the 'action' folder
