@@ -15,6 +15,11 @@ from config import *
 from copy import deepcopy
 from tf.transformations import *
 import baxter_pykdl
+import random
+from game_server.msg import *
+from threading import Timer
+import time
+from copy import deepcopy
 
 # source: http://sdk.rethinkrobotics.com/wiki/Hardware_Specifications
 
@@ -38,6 +43,146 @@ import baxter_pykdl
 # W1	-1.571		+2.094		3.665
 # W2	-3.059		+3.059		6.117
 
+#returns ordered list of throws. 0 is most inner, length is outer
+def get_ordered_uppers() :
+	uppers = []
+
+	#veers right, misses!
+	pose = {'w0': -2.3573449730896, 'w1': -0.13000487162475588, 'w2': 0.022626216595458985, 'e0': -2.771136290148926, 'e1': 1.0151117852233886, 's0': -0.08743690480957032, 's1': -0.5783107563720703}
+	uppers.append(pose)
+
+	#veers right
+	pose = {'w0': -2.4708595512634277, 'w1': -0.01457281746826172, 'w2': 0.027611654150390626, 'e0': -2.625791610662842, 'e1': 0.5426457030944825, 's0': -0.08858739039916992, 's1': -0.796519523199463}
+	uppers.append(pose)
+
+	#really high mid to right
+	pose = {'w0': -2.2434468997192383, 'w1': 0.06442719301757813, 'w2': 0.046786413977050786, 'e0': -2.7626993958251953, 'e1': 0.9767622655700684, 's0': -0.1587670113647461, 's1': -0.5437961886840821}
+	uppers.append(pose)
+
+	#really high release, center A++++ both arms
+	pose = {'w0': -2.276810981817627, 'w1': 0.1449611842895508, 'w2': 0.042951462011718754, 'e0': -2.6380634569519046, 'e1': 0.8743690480957031, 's0': -0.2427524594055176, 's1': -0.7075486376037599}
+	uppers.append(pose)
+
+
+	#really high release, veers left.
+	pose = {'w0': -2.3339517661010745, 'w1': 0.5161845345336914, 'w2': -0.0065194183410644535, 'e0': -2.7212819145996097, 'e1': 1.136679762524414, 's0': 0.0034514567687988283, 's1': -0.5579855109558106}
+	uppers.append(pose)
+
+	return uppers
+
+def get_ordered_middles() :
+	middles = []
+
+	pose = {'w0': -3.0590003413140225, 'w1': 0.6707745877077995, 'w2': -0.5000126397492455, 'e0': -1.3369353610858052, 'e1': 1.172494668288068, 's0': -0.07999934123325048, 's1': -1.0000100920451613}
+	middles.append(pose)
+
+	pose = {'w0': -2.6461548774463948, 'w1': -0.6628873295811122, 'w2': 0.1619836544514941, 'e0': -2.4273649777016555, 'e1': 0.7579967596882549, 's0': -0.04740248292186955, 's1': -0.7847008492166339}
+	middles.append(pose)
+
+	return middles
+
+def get_ordered_banks() :
+	banks = []
+
+	pose = {'w0': -3.0590003413140225, 'w1': 0.6707745877077995, 'w2': -0.5000126397492455, 'e0': -1.3369353610858052, 'e1': 1.172494668288068, 's0': -0.07999934123325048, 's1': -1.0000100920451613}
+	banks.append(pose)
+
+	return banks
+
+
+#chooses a throw based on past choices and corresponding score updates
+class thrower_ai :
+	def __init__(self):
+
+		self.throw_positions = {}
+		self.throw_positions['uppers'] = get_ordered_uppers()
+		self.throw_positions['middles'] = get_ordered_middles()
+		self.throw_positions['banks'] = get_ordered_banks() #two left, then two right
+
+
+		self.bound = {}
+		self.bound['uppers'] = [0, len(self.throw_positions['uppers']) - 1]
+		self.bound['middles'] = [0, len(self.throw_positions['middles']) - 1]
+		self.bound['banks'] = [0, len(self.throw_positions['banks']) - 1]
+
+		self.current_category = 'uppers'
+		self.throw_state = {}
+		self.throw_state['uppers'] = 0
+		self.throw_state['middles'] = 0
+		self.throw_state['banks'] = 0
+
+
+		self.net_gains = {}
+		self.net_gains['uppers'] = 0
+		self.net_gains['middles'] = 0
+		self.net_gains['banks'] = 0
+
+		self.our_score = 0
+		self.our_penalties = 0
+		self.enemy_score = 0
+		self.enemy_penalties = 0
+
+		self.throw_time = 0
+		self.score_window = 15
+
+	def score_before_throw(self, our_s, our_p, enemy_s, enemy_p) :
+		self.our_score = our_s
+		self.our_penalties = our_p
+		self.enemy_score = enemy_s
+		self.enemy_penalties = enemy_p
+		self.throw_time = throwtime
+	
+
+	#call this, so robot can update throw, either keeping current, or adjusting strategy
+	def score_after_throw(self, our_s, our_p, enemy_s, enemy_p) :
+
+		gain = (our_s - self.our_score) + (enemy_p - self.enemy_penalties)
+		loss = (enemy_s - self.enemy_score) + (our_p - self.our_penalties)
+		net_gain = gain - loss
+		self.net_gains[self.current_category] += net_gain
+
+
+		#change the throw of this state, not worth trying again...
+		if net_gain <= 0 :
+			self.throw_state[self.current_category] = (self.throw_state[self.current_category] + 1) % 3
+
+			#uppers have failed twice, we need to change
+			if self.current_category == 'uppers' and self.net_gains['uppers'] <= -2 :
+				if self.net_gains['middles'] >= self.net_gains['uppers'] || self.net_gains['banks'] >= self.net_gains['middles'] :
+					if self.net_gains['middles'] >= self.net_gains['banks'] :
+						self.current_category = 'middles'
+					else :
+						self.current_category = 'banks'
+
+			elif self.current_category == 'middles' :
+				if self.net_gains['uppers'] >= self.net_gains['middles'] || self.net_gains['banks'] >= self.net_gains['middles'] :
+					if self.net_gains['uppers'] >= self.net_gains['banks'] :
+						self.current_category = 'uppers'
+					else :
+						self.current_category = 'banks'
+
+			elif self.current_category == 'banks' :
+				if self.net_gains['uppers'] >= self.net_gains['banks'] || self.net_gains['middles'] >= self.net_gains['banks'] :
+					if self.net_gains['uppers'] >= self.net_gains['middles'] :
+						self.current_category = 'uppers'
+					else :
+						self.current_category = 'middles'
+
+
+	def get_throw_pose(self) :
+		state = self.throw_state[self.current_category] 
+		innerIndex = self.bound[self.current_category][0]
+		outerIndex = self.bound[self.current_category][1]
+		if state == 0 :
+			index = innerIndex
+		elif state == 1 :
+			index = outerIndex
+		elif state == 2 :
+			index = random.randint(innerIndex+1, outerIndex-1) 
+		return (self.throw_positions[self.current_category])[index]]
+	
+
+
 class thrower :
 	def __init__(self):
 		rospy.init_node('thrower')
@@ -47,6 +192,11 @@ class thrower :
 		init_state = rs.state().enabled
 
 		self.move_robot = createServiceProxy("move_robot", MoveRobot, "")
+
+		self.game_state = GameState()
+		self.game_state.score = [0,0]
+		self.game_state.penalty = [0,0]
+		self.score_sub = rospy.Subscriber( "/game_server/game_state", GameState, self.update_scores)
 
 		# self.limb = 'left'
 		self.limb = rospy.get_param("limb")
@@ -59,53 +209,104 @@ class thrower :
 		self.target_pose_pub = rospy.Publisher('zic_target_pose', PoseStamped, queue_size=1)
 
 		throw_service = createService('throw', Action, self.throw_srv, "")
+
+
+		self.ai = thrower_ai()
+
+
+		rate = Rate(.09)
+		while not rospy.shutdown() :
+
+
+			print "-----------CURRENT ARM POSITIONS------------"
+			print self.arm.joint_angles()
+
+
+			#use this code to test new arm positions and recently recorded ones
+			#if False:
+			#	self.testLeftArmInitialPositions(45)
+			#else :
+			#	self.gripper.command_position(100, block=True)
+			#	rospy.sleep(4)
+			#	self.gripper.command_position(0, block=True)
+
+
+
+
+			new_pose = self.ai.get_throw_pose()
+			self.send_score_before_throw()
+
+
+			if self.canceled:
+				return ActionResponse(False)
+
+			if self.limb == "right" :
+				new_pose = mirror_left_arm_joints(new_pose)
+			self.arm.move_to_joint_positions(new_pose)
         
-		# set the release pose
-		# release_pose = Pose()
-		# release_pose.position = release_pos
-		# release_pose.orientation = Quaternion(0.140770659119,0.989645234506,0.0116543447684,0.0254972076605)
-		# success = self.move_robot(MOVE_TO_POSE, self.limb, release_pose)
-		
-		# move to the release pose
-		# self.moveToThrow()
+	
+			
 
-		# recorded good throw configs:
-		#self.moveToThrow(w1=-0.7)
-		# self.moveToThrow(w1=-0.7, e1=2.40)
-		# self.moveToThrow(w1=-0.7, e1=1.57)
 
-		# self.arm.move_to_neutral()
+			# throw the ball
+			self.throw()
 
-		# print self.arm.joint_angles()
-		
-		# close the gripper
-		# self.move_robot(CLOSE_GRIPPER, self.limb, Pose())
-		print "-----------CURRENT ARM POSITIONS------------"
-		print self.arm.joint_angles()
-		if False:
-			self.testLeftArmInitialPositions(45)
-		else :
-			self.gripper.command_position(100, block=True)
-			rospy.sleep(4)
-			self.gripper.command_position(0, block=True)
-		# throw the ball
-		self.throw()
-		# self.throw_2([0.5, 0.0, 0.1], 1.0, 0.0, math.radians(10))
-		#while not rospy.shutdown() :
-		#	pass
+			rate.sleep()
+	
 
 		#rospy.spin()
+
+	def update_scores(self, msg) :
+		self.game_state = deepcopy(msg)
+		
+
+
+	def send_score_before_throw(self) :
+		gs = self.game_state
+		our_team = 1
+		enemy_team = 0
+		if self.limb == 'left'
+			our_team = 0
+			enemy_team = 1
+		if gs != None :
+			self.ai.score_before_throw(gs.score[our_team], gs.penalty[our_team], gs.score[enemy_team], gs.penalty[enemy_team])
+	
+	def send_score_after_throw(self) :
+		gs = self.game_state
+		our_team = 1
+		enemy_team = 0
+		if self.limb == 'left'
+			our_team = 0
+			enemy_team = 1
+		if gs != None :
+			self.ai.score_after_throw(gs.score[our_team], gs.penalty[our_team], gs.score[enemy_team], gs.penalty[enemy_team])
+	
+
 
 	def throw_srv(self, req):
 		if self.canceled:
 			return ActionResponse(False)
-		self.moveToThrow(w1=-0.7)
+		
+		
+
 
 		if self.canceled:
 			return ActionResponse(False)
 
+
+		new_pose = self.ai.get_throw_pose()
+		self.send_score_before_throw()
+
+		if self.limb == "right" :
+			new_pose = mirror_left_arm_joints(new_pose)
+		self.arm.move_to_joint_positions(new_pose)
 		
 		self.throw()
+
+		Timer(10, self.send_score_after_throw, ()).start()
+
+		#start coroutine to ping score after 10 seconds
+		s = sched.scheduler(time.time, time.sleep)
 
 		return ActionResponse(True)
 
@@ -131,10 +332,7 @@ class thrower :
 			new_pose = {'w0': -2.276810981817627, 'w1': 0.1449611842895508, 'w2': 0.042951462011718754, 
 			'e0': -2.6380634569519046, 'e1': 0.8743690480957031, 's0': -0.2427524594055176, 
 			's1': -0.7075486376037599}
-		elif index == 42 : #really high release, veers right MISSES
-			new_pose = {'w0': -2.3573449730896, 'w1': -0.13000487162475588, 'w2': 0.022626216595458985, 
-			'e0': -2.771136290148926, 'e1': 1.0151117852233886, 's0': -0.08743690480957032, 
-			's1': -0.5783107563720703}
+		
 		elif index == 43 : #really high mid to right
 			new_pose = {'w0': -2.2434468997192383, 'w1': 0.06442719301757813, 'w2': 0.046786413977050786, 'e0': -2.7626993958251953, 'e1': 0.9767622655700684, 's0': -0.1587670113647461, 's1': -0.5437961886840821}
 		elif index == 44 : #tested once, centered
@@ -189,111 +387,7 @@ class thrower :
 		rospy.sleep(1)
 		self.gripper.command_position(0, block=True)
 
-	# def throw_2(self, release_position, release_speed, release_elevation, release_azimuth):
-	# 	link_len = 0.31
-	# 	angular_speed = release_speed / link_len
-
-	# 	throw = [0,0,0,0,0,-angular_speed,0]
-	# 	zero = [0,0,0,0,0,0,0]
-	# 	throw_dict = {}
-	# 	zero_dict = {}
-
-	# 	for i in xrange(0,7) :
-	# 		throw_dict[self.limb+'_'+joint_names[i]] = throw[i]
-	# 		zero_dict[self.limb+'_'+joint_names[i]] = 0
-
-	# 	safty_buffer = math.radians(10.0)
-	# 	w1_min = -1.571
-	# 	w1_max = 2.094
-
-	# 	back_swing = math.radians(60.0)
-	# 	follow_through = math.radians(40.0)
-	# 	open_gripper_time = 0.1
-
-	# 	st = np.sin(release_azimuth)
-	# 	ct = np.cos(release_azimuth)
-	# 	cp = np.cos(release_elevation)
-	# 	sp = np.sin(release_elevation)
-	# 	rotation_matrix = np.array([[st*cp, -ct, st*sp, 0],
-	# 								[-ct*cp, -st, -ct*sp, 0],
-	# 								[sp, 0.0, -cp, 0],
-	# 								[0,0,0,1]])
-			                    
-	# 	ron = quaternion_from_matrix(rotation_matrix)
-	# 	release_orientation = [ron[1], ron[2], ron[3], ron[0]]
-
-	# 	target_pose = PoseStamped()
-	# 	target_pose.header.frame_id = 'base'
-	# 	target_pose.header.stamp = rospy.Time.now()
-	# 	target_pose.pose = Pose(Vector3(release_position[0], release_position[1], release_position[2]),
-	# 						Quaternion(ron[1], ron[2], ron[3], ron[0]))
-
-	# 	self.target_pose_pub.publish(target_pose)
-	# 	print(target_pose)
-	# 	success = self.move_robot(MOVE_TO_POSE, self.limb, target_pose.pose)
-
-
-	# 	print(release_position)
-	# 	print(release_orientation)
-
-	# 	#throw_beginning_joint_angles_list = self.arm_kin.inverse_kinematics(release_position, orientation=release_orientation)#, seed=[-0.8747, -0.8663, 0.4621, 2.222, 1.7357, 0.0000, 0.0000])
-
-	# 	# set our limb's joint angle to be "back_swing" radians back from the endpoint
-	# 	# NOT SURE ABOUT SIGN
-	# 	#throw_beginning_joint_angles_list[5] -= back_swing
-	# 	print("Beginning to move to joint positions")
-	# 	#print(numpy_to_joint_dict(self.limb, throw_beginning_joint_angles_list))
-	# 	#self.arm.move_to_joint_positions(numpy_to_joint_dict(self.limb, throw_beginning_joint_angles_list))
-
-	# 	current_joints = self.arm.joint_angles()
-
-	# 	# set release_angle as current joint angle
-	# 	release_angle = current_joints[self.limb+'_w1']
-
-	# 	# set open_angle to compensate for open gripper time
-	# 	open_offset = open_gripper_time * angular_speed
-	# 	open_angle = release_angle + open_offset
-
-	# 	# set stop_angle allowing for follow through 
-	# 	stop_angle = release_angle - follow_through
-	# 	# make sure follow through won't hit joint limit
-	# 	if stop_angle < w1_min + safty_buffer :
-	# 		stop_angle = w1_min + safty_buffer
-
-	# 	opened = False
-	# 	released = False
-	# 	rate = rospy.Rate(300)
-	# 	while True :
-	# 		current_joints = self.arm.joint_angles()
-	# 		current_angle = current_joints[self.limb+'_w1']
-
-	# 		# opens gripper slightly before release_angle to account for open gripper time
-	# 		if not opened and open_angle > current_angle : 
-	# 			self.gripper.command_position(100, block=False)
-	# 			opened = True
-	# 			# print "open_angle"
-	# 			# print open_angle
-	# 			# print "actual_open_angle"
-	# 			# print current_angle
-
-	# 		# should release at correct pos/vel
-	# 		if not released and release_angle > current_angle :
-	# 			actual_release_pos = np.array(self.arm.endpoint_pose()['position'])
-	# 			# actual_release_vel = np.array(self.arm.endpoint_velocity()['linear'])
-	# 			actual_release_speed = self.arm.joint_velocities()[self.limb+'_w1'] * link_len
-	# 			released = True
-	# 			print "actual_release_pos"
-	# 			print actual_release_pos
-	# 			print "actual_release_speed"
-	# 			print actual_release_speed
-
-	# 		# stops at the stop_angle
-	# 		if stop_angle > current_angle :
-	# 			self.arm.set_joint_velocities(zero_dict)
-	# 			break
-
-	# 		self.arm.set_joint_velocities(throw_dict)
-	# 		rate.sleep()
+	
 
 	#throws through w1, setting the release to be the initial position
 	def throw(self) :
