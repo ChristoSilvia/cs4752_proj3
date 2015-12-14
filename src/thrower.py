@@ -48,12 +48,12 @@ def get_ordered_uppers() :
 	uppers = []
 
 	#veers right, misses!
-	pose = {'w0': -2.3573449730896, 'w1': -0.13000487162475588, 'w2': 0.022626216595458985, 'e0': -2.771136290148926, 'e1': 1.0151117852233886, 's0': -0.08743690480957032, 's1': -0.5783107563720703}
-	uppers.append(pose)
+	#pose = {'w0': -2.3573449730896, 'w1': -0.13000487162475588, 'w2': 0.022626216595458985, 'e0': -2.771136290148926, 'e1': 1.0151117852233886, 's0': -0.08743690480957032, 's1': -0.5783107563720703}
+	#uppers.append(pose)
 
 	#veers right
-	pose = {'w0': -2.4708595512634277, 'w1': -0.01457281746826172, 'w2': 0.027611654150390626, 'e0': -2.625791610662842, 'e1': 0.5426457030944825, 's0': -0.08858739039916992, 's1': -0.796519523199463}
-	uppers.append(pose)
+	# pose = {'w0': -2.4708595512634277, 'w1': -0.01457281746826172, 'w2': 0.027611654150390626, 'e0': -2.625791610662842, 'e1': 0.5426457030944825, 's0': -0.08858739039916992, 's1': -0.796519523199463}
+	# uppers.append(pose)
 
 	#really high mid to right
 	pose = {'w0': -2.2434468997192383, 'w1': 0.06442719301757813, 'w2': 0.046786413977050786, 'e0': -2.7626993958251953, 'e1': 0.9767622655700684, 's0': -0.1587670113647461, 's1': -0.5437961886840821}
@@ -160,8 +160,8 @@ class thrower_ai :
 
 		#change the throw of this state, not worth trying again...
 		if net_gain <= 0 :
-			self.throw_state[self.current_category] = (self.throw_state[self.current_category] + 1) % 3
-			
+			self.throw_state[self.current_category] = (self.throw_state[self.current_category] + 1) % len(self.throw_positions[self.current_category])
+			return
 			#uppers have failed twice, we need to change
 			if self.current_category == 'uppers' and self.net_gains['uppers'] <= -2 :
 				print "Uppers failed twice"
@@ -195,15 +195,17 @@ class thrower_ai :
 
 	def get_throw_pose(self) :
 		state = self.throw_state[self.current_category] 
-		innerIndex = self.bound[self.current_category][0]
-		outerIndex = self.bound[self.current_category][1]
-		if state == 0 :
-			index = innerIndex
-		elif state == 1 :
-			index = outerIndex
-		elif state == 2 :
-			index = random.randint(innerIndex+1, outerIndex-1) 
-		return (self.throw_positions[self.current_category])[index]
+		return (self.throw_positions[self.current_category])[state]
+		#innerIndex = self.bound[self.current_category][0]
+		#outerIndex = self.bound[self.current_category][1]
+		#if state == 0 :
+		#	index = innerIndex
+		#elif state == 1 :
+		#	index = outerIndex
+		
+		#elif state == 2 :
+		#	index = random.randint(innerIndex+1, outerIndex-1) 
+		#return (self.throw_positions[self.current_category])[index]
 	
 
 
@@ -239,10 +241,10 @@ class thrower :
 
 		self.ai = thrower_ai()
 
-		rapidFireTesting = False
+		#rapidFireTesting = False
 
-		# rate = rospy.Rate(.09)
-		# while not rospy.is_shutdown() :
+		#rate = rospy.Rate(.5)
+		#while not rospy.is_shutdown() :
 
 
 		# 	print "-----------CURRENT ARM POSITIONS------------"
@@ -254,9 +256,9 @@ class thrower :
 		# 		if False:
 		# 			self.testLeftArmInitialPositions(45)
 		# 		else :
-		# 			self.gripper.command_position(100, block=True)
-		# 			rospy.sleep(4)
-		# 			self.gripper.command_position(0, block=True)
+			#self.gripper.command_position(100, block=True)
+			#rospy.sleep(4)
+			#self.gripper.command_position(0, block=True)
 
 			
 		# 	# self.arm.move_to_joint_positions(new_pose)
@@ -264,11 +266,11 @@ class thrower :
 		# 	# throw the ball
 		# 	# self.throw()
 
-		# 	#req = ActionRequest()
-		# 	#resp = self.throw_srv(req)
-		# 	#print resp
+			#req = ActionRequest()
+			#resp = self.throw_srv(req)
+			#print resp
 
-		# 	rate.sleep()
+			#rate.sleep()
 	
 
 		rospy.spin()
@@ -309,15 +311,21 @@ class thrower :
 
 		self.send_score_before_throw()
 		new_pose = self.ai.get_throw_pose()
+		self.arm.set_joint_position_speed(.3)
 		
 		if self.limb == "right" :
 			new_pose = mirror_left_arm_joints(new_pose)
 
 		print "Pose from ai::"
 		print new_pose
-		# self.arm.move_to_joint_positions(new_pose)
+		extra_new_pose = {}
+		for p in new_pose:
+			extra_new_pose[self.limb+'_'+p] = new_pose[p]
+		new_pose = extra_new_pose
+		self.arm.move_to_joint_positions(new_pose)
+
 		
-		# self.throw()
+		self.throw()
 
 		#start coroutine to ping score after 10 seconds
 		Timer(10, self.send_score_after_throw, ()).start()

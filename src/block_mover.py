@@ -36,6 +36,8 @@ class block_mover() :
 
         self.get_desired_block_poses = createServiceProxy("get_desired_block_poses", BlockPoses, "")
 
+        self.position_srv = createServiceProxy('end_effector_position', EndEffectorPosition, self.limb_name)
+
         init_blocks = createService("init_blocks", BlockPoses, self.setDesiredBlockPoses, "")
         self.arm = baxter_interface.Limb(self.limb_name)
 

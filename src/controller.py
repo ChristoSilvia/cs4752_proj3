@@ -78,7 +78,7 @@ class controller() :
         self.block_size = .045
         self.arm = baxter_interface.Limb(self.limb_name)
         # self.PHASE = rospy.get_param("phase")
-        self.PHASE = 3
+        self.PHASE = 1
         # self.ball_on_side = rospy.get_param("ball_start")
         self.ball_on_side = 'left'
 
@@ -118,6 +118,7 @@ class controller() :
             self.goal_joints = self.arm.joint_angles()
             # joint_angles = list(joint_dict_to_numpy(self.arm.joint_angles()))
             # self.goal_center_joint_angles_pub.publish(joint_angles)
+            self.goal_center_pose = get_current_pose(self.arm)
             self.goal_center_pose_pub.publish(get_current_pose(self.arm))
 
             prompt = "Press Enter when Arm is at the field center"
@@ -165,8 +166,9 @@ class controller() :
             req.action = BLOCK
             req.limb = self.limb_name
 
-            self.arm.set_joint_position_speed(.1)
-            self.arm.set_joint_positions(self.goal_joints)
+            # self.arm.set_joint_position_speed(.1)
+            
+            self.move_robot(MOVE_TO_POSE, self.limb_name, self.goal_center_pose)
             block_res = self.block(req)
             return block_res.success
 
