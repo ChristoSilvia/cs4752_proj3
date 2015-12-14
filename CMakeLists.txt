@@ -55,6 +55,7 @@ add_message_files(
   BlockerPosition.msg
   PlayingFieldPoints.msg
   ScreenObj.msg
+  BlockerOffset.msg
 )
 
 ## Generate services in the 'srv' folder
@@ -69,6 +70,7 @@ add_service_files(
   SetParameters.srv
   BlockPoses.srv
   CalibrateKinect.srv
+  BlockingPosition.srv
 )
 
 ## Generate actions in the 'action' folder

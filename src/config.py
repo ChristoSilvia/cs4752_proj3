@@ -4,6 +4,13 @@ import rospy
 import numpy as np
 from geometry_msgs.msg import *
 
+midfield_to_ball_start = 0.5334 # from field measurement
+goal_width = 0.28
+field_length = 1.38
+field_width = 0.68
+gripper_width = 0.05
+gripper_depth = 0.03
+
 joint_names = ['s0', 's1', 'e0', 'e1', 'w0', 'w1', 'w2']
 
 CLOSE_GRIPPER = 0
