@@ -9,9 +9,14 @@ import rospy
 from geometry_msgs.msg import Point, PoseStamped
 from cs4752_proj3.msg import BallPositionVelocity
 
-rolling_threshold = 0.05
-r_block
+virtual_ball_position_saturation = np.array([0.7, 1.2])
+virtual_ball_velocity_saturation = np.array([0.3, 1.0])
+virtual_ball_speed = 0.05
+virtual_ball_acceleration = 0.01
+
 center_of_field = np.array([0.6, 0.0, -0.08])
+virtual_ball_speed = 0.1 
+virtual_ball_acceleration = 0.1
 
 class DetermineVelocities:
 	def __init__(self):
@@ -25,11 +30,6 @@ class DetermineVelocities:
 		self.pub = rospy.Publisher('/ball_position_velocity', BallPositionVelocity, 
 			queue_size=10) 
 		rospy.Subscriber('/ball_pose_kinect', PoseStamped, self.handle_data)
-
-        self.block_poses = [ np.array([ 0.6, 0.2, -0.08]),
-            np.array([0.5, 0.3, -0.08]) ]
-        self.last_min_block_distance = float('inf')
-
 
 		rospy.spin()
 
@@ -56,6 +56,24 @@ class DetermineVelocities:
 				[0.0, 0.0, 1.0, 0.0],
 				[0.0, 0.0, 0.0, 1.0]])
 
+    		model_noise_matrix = np.array([
+	    		[((2.0/np.pi)*virtual_ball_position_saturation[0]*np.arctan((2.0/np.pi)*(virtual_ball_speed/virtual_ball_position_saturation)*delta_t)**2, 0.0, 0.0, 0.0],
+		    	[0.0, ((2.0/np.pi)*virtual_ball_position_saturation[1]*np.arctan((2.0/np.pi)*(virtual_ball_speed/virtual_ball_position_saturation)*delta_t))**2, 0.0, 0.0],
+			   	[0.0, 0.0, ((2.0/np.pi)*virtual_ball_velocity_saturation[0]*np.arctan((2.0/np.pi)*(virtual_ball_acceleration/virtual_ball_velocity_saturation[0]*delta_t)**2, 0.0],
+			    [0.0, 0.0, 0.0, ((2.0/np.pi)*virtual_ball_velocity_saturation[1]*np.arctan((2.0/np.pi)*(virtual_ball_acceleration/virtual_ball_velocity_saturation[1]*delta_t)**2]])
+
+			predicted_position = self.state[:2] + delta_t * self.state[2:]
+			# check for collision with a top wall
+			if (predicted_position[0] > center_of_field[0] + config.field_width - config.ball_radius) or (predicted_position[0] < center_of_field[0] - config.field_width + config.ball_radius):
+				update_matrix[2,2] = -1.0
+				model_noise_matrix[2,2] += 0.1**2
+		
+			# check for collision with a bottom wall
+			if (predicted_position[1] > center_of_field[1] + config.field_length - config.ball_radius) or (predicted_position[1] < center_of_field[1] - config.field_length + config.ball_radius):
+				update_matrix[3,3] = -1.0
+				model_noise_matrix[3,3] += 0.1**2
+
+
 			print("Update Matrix: {0}".format(update_matrix))
 
 			offset = np.array([0.0, 0.0, 0.0, 0.0])
@@ -65,21 +83,7 @@ class DetermineVelocities:
 				[0.0, 1.0, 0.0, 0.0],
 				[1.0, 0.0, -delta_t, 0.0],
 				[0.0, 1.0, 0.0, -delta_t]])
-
-            min_block_distance = min([ np.linalg.norm(block[:2] - position) for block in self.block_poses ])
-            if (min_block_distance < block_radius) and (last_min_block_distance > block_radius):
-                model_noise_matrix = np.array([
-                    [0.02**2, 0.0, 0.0, 0.0],
-                    [0.0, 0.02**2, 0.0, 0.0],
-                    [0.0, 0.0, 0.5**2, 0.0],
-                    [0.0, 0.0, 0.0, 0.5**2]])
-            else:         
-    			model_noise_matrix = np.array([
-	    			[0.005**2, 0.0, 0.0, 0.0],
-		    		[0.0, 0.005**2, 0.0, 0.0],
-			    	[0.0, 0.0, 0.01**2, 0.0],
-				    [0.0, 0.0, 0.0, 0.01**2]])
-
+			
 			# predict
 			predicted_state = np.dot(update_matrix, self.state) + offset
 			predicted_covariance = np.dot(update_matrix,np.dot(self.covariance, update_matrix.T)) + model_noise_matrix
