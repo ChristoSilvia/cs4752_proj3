@@ -9,7 +9,12 @@ find_package(catkin REQUIRED COMPONENTS
   rospy
   std_msgs
   geometry_msgs
+  dynamic_reconfigure
   message_generation
+)
+
+generate_dynamic_reconfigure_options(
+  config/kinect_tf.cfg
 )
 
 ## System dependencies are found with CMake's conventions

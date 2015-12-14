@@ -71,16 +71,32 @@ class block_mover() :
 
         for desired_block_pose in self.desired_block_poses:
             desired_block_pose.orientation = deepcopy(self.initial_pose.orientation)
+            desired_block_pose.position.z = deepcopy(self.table_z)
 
-        # for i in range(0,self.num_blocks):
-        #     if i != 0:
-        #         self.move_robot(MOVE_TO_POSE_INTERMEDIATE, self.limb_name, self.init_block_poses[i])
+        print self.desired_block_poses
+        print self.num_blocks
 
-        #     self.move_robot(CLOSE_GRIPPER, self.limb_name, Pose())
+        test_pub = rospy.Publisher('/test_block_pose', PoseStamped, queue_size=10)
 
-        #     self.move_robot(MOVE_TO_POSE_INTERMEDIATE, self.limb_name, self.desired_block_poses[i])
+        ps = PoseStamped()
+        ps.header.frame_id = "base"
+        ps.header.stamp = rospy.Time.now()
+        ps.pose = deepcopy(self.desired_block_poses[0])
 
-        #     self.move_robot(OPEN_GRIPPER, self.limb_name, Pose())
+        # rate = rospy.Rate(5)
+        # while not rospy.is_shutdown() :
+        #     test_pub.publish(ps)
+        #     rate.sleep()
+
+        for i in range(0,self.num_blocks):
+            if i != 0:
+                self.move_robot(MOVE_TO_POSE_INTERMEDIATE, self.limb_name, self.init_block_poses[i])
+
+            self.move_robot(CLOSE_GRIPPER, self.limb_name, Pose())
+
+            self.move_robot(MOVE_TO_POSE_INTERMEDIATE, self.limb_name, self.desired_block_poses[i])
+
+            self.move_robot(OPEN_GRIPPER, self.limb_name, Pose())
 
         return BlockPosesResponse(self.desired_block_poses)
 

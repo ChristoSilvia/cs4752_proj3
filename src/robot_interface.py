@@ -133,13 +133,22 @@ class RobotInterface():
 
         return MoveRobotResponse(success)
 
+    def getCurrentPose(self, arm):
+        pos = arm.endpoint_pose()['position']
+        ori = arm.endpoint_pose()['orientation']
+        p = Pose()
+        p.point = Point(pos[0],pos[1],pos[2])
+        p.orientation = Quaternion(pos[0],pos[1],pos[2],pos[3])
+        return p
+
     def MoveToPoseWithIntermediate(self, limb, pose, inter1=True, inter2=True, inter3=False) :
-        hand_pose = self.hand_pose_left if limb == 'left' else self.hand_pose_right
+        arm = self.limb_left if limb == 'left' else self.limb_right
+        hand_pose = self.getCurrentPose(arm)
         if inter1 :
-            interpose1 = self.getOffsetPose(hand_pose, .05)
+            interpose1 = self.getOffsetPose(hand_pose, .02)
             b1 = self.MoveToPose(limb, interpose1, "MoveToIntermediatePose")
         if inter2 :
-            interpose2 = self.getOffsetPose(pose, .05)
+            interpose2 = self.getOffsetPose(pose, .02)
             b2 = self.MoveToPose(limb, interpose2, "MoveToIntermediatePose")
         if inter3 :
             interpose2 = self.getOffsetPose(pose, .01)

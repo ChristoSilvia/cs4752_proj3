@@ -74,8 +74,8 @@ class kinect_calibration:
 	def transform_from_matrix(self, transform):
 		t = TransformStamped()
 		t.header.stamp = rospy.Time.now()
-		t.header.frame_id = "/base"
-		t.child_frame_id = "/camera_rgb_optical_frame"
+		t.header.frame_id = "base"
+		t.child_frame_id = "camera_rgb_optical_frame"
 		T = translation_from_matrix(transform)
 		t.transform.translation.x = T[0]
 		t.transform.translation.y = T[1]
@@ -102,6 +102,14 @@ class kinect_calibration:
 				world_point = self.screenToWorld(x,y)
 				print world_point
 
+				# test_pub = rospy.Publisher('/test_block_pose', PoseStamped, queue_size=10)
+				# ps = PoseStamped()
+				# ps.header.frame_id = "camera_rgb_optical_frame"
+				# ps.header.stamp = rospy.Time.now()
+				# ps.pose.position = deepcopy(world_point)
+				# ps.pose.orientation = Quaternion(0,0,0,1)
+				# test_pub.publish(ps)
+
 				self.draw_image = self.rgb_image.copy()
 				cv2.circle(self.draw_image, (int(x), int(y)), int(self.radius), (0,255,255),2)
 
@@ -122,30 +130,23 @@ class kinect_calibration:
 		desired_block_poses = []
 		for point in desired_block_points:
 			p = Pose()
-
+			print point
 			basePt = self.KinectToBasePointTF(point)
 			
-			p.position = basePt
+			p.position = deepcopy(basePt)
 			desired_block_poses.append(p)
 
 		return BlockPosesResponse(desired_block_poses)
 
 	def KinectToBasePointTF(self, point):
 		ps = PointStamped()
-		kinect_frame = "/camera_rgb_optical_frame"
+		kinect_frame = "camera_rgb_optical_frame"
 		ps.header.frame_id = kinect_frame
 		ps.header.stamp = self.transform_listener.getLatestCommonTime(kinect_frame, 'base')
 		ps.point = deepcopy(point)
 
-		# basePt = None
-		# while basePt == None:
-		# 	try:
 		basePt = self.transform_listener.transformPoint('base', ps)
-			# except:
-			# 	print "no transform"
-			# 	basePt = None
-			# self.rate.sleep()
-		return basePt
+		return basePt.point
 
 	def calibrate(self, req):
 		calibration_points = req.calibration_points
@@ -309,9 +310,9 @@ class kinect_calibration:
 			if not math.isnan(distance) :
 				world_point = self.projectDepth((int(bi[0]), int(bi[1])), distance, self.rgb_image.shape[1], self.rgb_image.shape[0])
 			else :
-				"error nan"
+				print "error nan"
 		else :
-			"error no depth image"
+			print "error no depth image"
 
 		return world_point.position
 
@@ -331,7 +332,7 @@ class kinect_calibration:
 		
 		toball = np.zeros(3)
 		toball[0] = (point[0] - cx) / fx
-		toball[1] = -(point[1] - cy) / fy
+		toball[1] = (point[1] - cy) / fy
 		toball[2] = 1
 		toball = toball / np.linalg.norm(toball) #normalize so we can then multiply by distance
 		#distance = self.pixel_radius / radius

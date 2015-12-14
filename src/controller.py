@@ -37,9 +37,9 @@ class controller() :
         # self.limb_name = self.game_init("ZIC",None)
         # rospy.set_param("limb", self.limb_name)
         self.game_state_sub = rospy.Subscriber("/game_server/game_state", GameState, self.game_state_callback, queue_size=1)
+        self.game_state_sub = rospy.Subscriber("ball_position_velocity", BallPositionVelocity, self.ball_pos_vel_callback, queue_size=1)
 
         self.limb_name = rospy.get_param("limb")
-        self.limb_name = 'left'
         self.num_blocks = rospy.get_param("num_blocks")
 
         self.move_robot = createServiceProxy("move_robot", MoveRobot, "")
@@ -53,6 +53,7 @@ class controller() :
         self.arm = baxter_interface.Limb(self.limb_name)
         # self.PHASE = rospy.get_param("phase")
         self.PHASE = 2
+        self.ball_on_side = rospy.get_param("ball_start")
 
         self.rate = rospy.Rate(1)
 
@@ -62,6 +63,14 @@ class controller() :
 
     def game_state_callback(self, msg):
         pass
+
+    def ball_pos_vel_callback(self, msg):
+        if msg.position.y > 0:
+            self.ball_on_side = 'left'
+            "ball on left side"
+        if msg.position.y > 0:
+            self.ball_on_side = 'right'
+            "ball on right side"
 
     def PHASE1(self):
         loginfo("PHASE: 1")
