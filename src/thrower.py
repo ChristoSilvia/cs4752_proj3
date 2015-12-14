@@ -80,9 +80,14 @@ class thrower :
 		
 		# close the gripper
 		# self.move_robot(CLOSE_GRIPPER, self.limb, Pose())
-		print "CURRENT ARM POSITIONS"
+		print "-----------CURRENT ARM POSITIONS------------"
 		print self.arm.joint_angles()
-		#self.testLeftArmInitialPositions(3)
+		if True:
+			self.testLeftArmInitialPositions(43)
+		else :
+			self.gripper.command_position(100, block=True)
+			rospy.sleep(2)
+			self.gripper.command_position(0, block=True)
 		# throw the ball
 		self.throw()
 		# self.throw_2([0.5, 0.0, 0.1], 1.0, 0.0, math.radians(10))
@@ -108,17 +113,43 @@ class thrower :
 	#give an integer from the set and move to that location. these are known hot spots...
 	def testLeftArmInitialPositions(self, index) :
 		if index == 1:
-			new_pose = {'left_w0': -3.0590003413140225, 'left_w1': 0.6707745877077995, 'left_w2': -0.5000126397492455, 
-			'left_e0': -1.3369353610858052, 'left_e1': 1.172494668288068, 'left_s0': -0.07999934123325048, 'left_s1': 
+			new_pose = {'w0': -3.0590003413140225, 'w1': 0.6707745877077995, 'w2': -0.5000126397492455, 
+			'e0': -1.3369353610858052, 'e1': 1.172494668288068, 's0': -0.07999934123325048, 's1': 
 			-1.0000100920451613}
 		elif index == 2 :
-			new_pose = {'left_w0': -2.6461548774463948, 'left_w1': -0.6628873295811122, 'left_w2': 0.1619836544514941, 'left_e0': 
-			-2.4273649777016555, 'left_e1': 0.7579967596882549, 'left_s0': -0.04740248292186955, 'left_s1': -0.7847008492166339}
+			new_pose = {'w0': -2.6461548774463948, 'w1': -0.6628873295811122, 'w2': 0.1619836544514941, 'e0': 
+			-2.4273649777016555, 'e1': 0.7579967596882549, 's0': -0.04740248292186955, 's1': -0.7847008492166339}
 			
 		elif index == 3 :
-			new_pose = {'left_w0': -2.5017333910662423, 'left_w1': 1.160111690287775, 'left_w2': 0.0414804259901862, 'left_e0': 
-			-2.3290057728286806, 'left_e1': 2.054243975896581, 'left_s0': 0.21496177433691788, 'left_s1': -0.26548120061751224}
-		
+			new_pose = {'w0': -2.5017333910662423, 'w1': 1.160111690287775, 'w2': 0.0414804259901862, 'e0': 
+			-2.3290057728286806, 'e1': 2.054243975896581, 's0': 0.21496177433691788, 's1': -0.26548120061751224}
+		elif index == 40 : #really high release, veers left.
+			new_pose = {'w0': -2.3339517661010745, 'w1': 0.5161845345336914, 'w2': -0.0065194183410644535, 
+			'e0': -2.7212819145996097, 'e1': 1.136679762524414, 
+			's0': 0.0034514567687988283, 's1': -0.5579855109558106}
+		elif index == 41 : #really high release, center A++++ both arms
+			new_pose = {'w0': -2.276810981817627, 'w1': 0.1449611842895508, 'w2': 0.042951462011718754, 
+			'e0': -2.6380634569519046, 'e1': 0.8743690480957031, 's0': -0.2427524594055176, 
+			's1': -0.7075486376037599}
+		elif index == 42 : #really high release, veers right MISSES
+			new_pose = {'w0': -2.3573449730896, 'w1': -0.13000487162475588, 'w2': 0.022626216595458985, 
+			'e0': -2.771136290148926, 'e1': 1.0151117852233886, 's0': -0.08743690480957032, 
+			's1': -0.5783107563720703}
+		elif index == 43 : #really high mid to right
+			new_pose = {'w0': -2.2434468997192383, 'w1': 0.06442719301757813, 'w2': 0.046786413977050786, 'e0': -2.7626993958251953, 'e1': 0.9767622655700684, 's0': -0.1587670113647461, 's1': -0.5437961886840821}
+		elif index == 44 : #tested once, centered
+			new_pose = {'w0': -2.299053703216553, 'w1': 0.46786413977050784, 'w2': 0.00038349519653320315, 'e0': -2.6507187984375, 'e1': 1.231019580871582, 's0': -0.21437381486206056, 's1': -0.2918398445617676}
+
+		if self.limb == "right" :
+			new_pose = mirror_left_arm_joints(new_pose)
+
+		extra_new_pose = {}
+		for p in new_pose:
+			extra_new_pose[self.limb+'_'+p] = new_pose[p]
+		new_pose = extra_new_pose
+
+
+
 		self.gripper.command_position(100, block=True)
 		self.arm.move_to_joint_positions(new_pose)
 		rospy.sleep(1.5)
@@ -265,7 +296,7 @@ class thrower :
 	def throw(self) :
 		# test throw params
 		#release_pos = Point(0.573, 0.081, 0.036)
-		release_vel = Vector3(8.0, 0.00, 0.00)
+		release_vel = Vector3(100.0, 0.00, 0.00)
 		
 		safty_buffer = math.radians(10.0)
 		w1_min = -1.571
@@ -277,8 +308,8 @@ class thrower :
 
 		link_len = 0.31 # need to measure
 		angular_speed = linear_speed/link_len
-		if angular_speed > 6.0:
-			angular_speed = 6.0
+		if angular_speed > 4.0:
+			angular_speed = 4.0
 		# print "angular_speed (deg/sec)"
 		# print  math.degrees(angular_speed)
 		print "angular_speed (rad/sec)"
@@ -328,6 +359,12 @@ class thrower :
 		while True :
 			current_joints = self.arm.joint_angles()
 			current_angle = current_joints[self.limb+'_w1']
+
+			# current_speed = self.arm.joint_velocities()[self.limb+'_w1']
+			# open_offset = open_gripper_time * current_speed * 1.5
+			# open_angle = release_angle + open_offset
+
+
 
 			# opens gripper slightly before release_angle to account for open gripper time
 			if not opened and open_angle > current_angle : 
