@@ -241,37 +241,37 @@ class thrower :
 
 		rapidFireTesting = False
 
-		rate = rospy.Rate(.09)
-		while not rospy.is_shutdown() :
+		# rate = rospy.Rate(.09)
+		# while not rospy.is_shutdown() :
 
 
-			print "-----------CURRENT ARM POSITIONS------------"
-			print self.arm.joint_angles()
+		# 	print "-----------CURRENT ARM POSITIONS------------"
+		# 	print self.arm.joint_angles()
 
 
-			#use this code to test new arm positions and recently recorded ones
-			if rapidFireTesting:
-				if False:
-					self.testLeftArmInitialPositions(45)
-				else :
-					self.gripper.command_position(100, block=True)
-					rospy.sleep(4)
-					self.gripper.command_position(0, block=True)
+		# 	#use this code to test new arm positions and recently recorded ones
+		# 	if rapidFireTesting:
+		# 		if False:
+		# 			self.testLeftArmInitialPositions(45)
+		# 		else :
+		# 			self.gripper.command_position(100, block=True)
+		# 			rospy.sleep(4)
+		# 			self.gripper.command_position(0, block=True)
 
 			
-			# self.arm.move_to_joint_positions(new_pose)
+		# 	# self.arm.move_to_joint_positions(new_pose)
 
-			# throw the ball
-			# self.throw()
+		# 	# throw the ball
+		# 	# self.throw()
 
-			req = ActionRequest()
-			resp = self.throw_srv(req)
-			print resp
+		# 	#req = ActionRequest()
+		# 	#resp = self.throw_srv(req)
+		# 	#print resp
 
-			rate.sleep()
+		# 	rate.sleep()
 	
 
-		#rospy.spin()
+		rospy.spin()
 
 	def update_scores(self, msg) :
 		self.game_state = deepcopy(msg)

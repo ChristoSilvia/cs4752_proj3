@@ -53,7 +53,7 @@ class Blocker():
 		self.joint_position_tolerance = 0.02 
 		
 
-		self.center_of_goal = np.array([0.6, -0.5, -.08])
+		self.center_of_goal = center_of_goal
 		rospy.Subscriber('/goal_center_pose', Pose,  self.set_goal_center)
 
 		# BEGINNING OF IK

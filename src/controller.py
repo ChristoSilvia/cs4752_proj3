@@ -21,25 +21,47 @@ import tf
 from tf.transformations import *
 from copy import deepcopy
 import cv2
+from cv_bridge import CvBridge, CvBridgeError
 
 
 def loginfo(logstring):
     rospy.loginfo("Controller: {0}".format(logstring))
 
 class controller() :
-    def __init__(self, limb):
+    def __init__(self):
         rospy.init_node('controller')
         loginfo("Initialized node Controller")
 
-        baxter_interface.RobotEnable(CHECK_VERSION).enable()
+
+        self.bridge = CvBridge()    
+        img = cv2.imread('../ros_ws/src/cs4752_proj3/img/smith.jpg')
+        self.logo = self.bridge.cv2_to_imgmsg(img, encoding='bgr8')
 
         # self.game_init = createServiceProxy("game server/init", Init, "")
-        # self.limb_name = self.game_init("ZIC",None)
+        # self.limb_name = self.game_init("ZIC",self.logo)
         # rospy.set_param("limb", self.limb_name)
+        # print "Initialized game"
+
+        # try:
+        #     init_robot = rospy.ServiceProxy('/game_server/init', Init)
+        #     self.limb_name = init_robot('ZIC',self.logo)
+        #     rospy.set_param("limb", self.limb_name)
+        #     if self.limb_name == "none":
+        #         print "You were not given an arm!"
+        #     else:
+        #         print "You have been given the %s arm!" % self.limb_name
+        # except rospy.ServiceException, e:
+        #     print "Service call failed: %s"%e
+        self.limb_name = rospy.get_param("limb")
+
+        # print "Initialized game"
+
+        baxter_interface.RobotEnable(CHECK_VERSION).enable()
+        # limb_srv = 
+
         self.game_state_sub = rospy.Subscriber("/game_server/game_state", GameState, self.game_state_callback, queue_size=1)
         self.ball_pos_vel = rospy.Subscriber("ball_position_velocity", BallPositionVelocity, self.ball_pos_vel_callback, queue_size=1)
 
-        self.limb_name = rospy.get_param("limb")
         self.num_blocks = rospy.get_param("num_blocks")
 
         self.move_robot = createServiceProxy("move_robot", MoveRobot, "")
@@ -56,7 +78,7 @@ class controller() :
         self.block_size = .045
         self.arm = baxter_interface.Limb(self.limb_name)
         # self.PHASE = rospy.get_param("phase")
-        self.PHASE = 1
+        self.PHASE = 3
         # self.ball_on_side = rospy.get_param("ball_start")
         self.ball_on_side = 'left'
 
@@ -98,13 +120,16 @@ class controller() :
             # self.goal_center_joint_angles_pub.publish(joint_angles)
             self.goal_center_pose_pub.publish(get_current_pose(self.arm))
 
-            prompt = "Press Enter when Arm is at the center goal position"
+            prompt = "Press Enter when Arm is at the field center"
             cmd = raw_input(prompt)
             self.field_center_pose_pub.publish(get_current_pose(self.arm))
 
             prompt = "Press Enter when Arm is at the above ball start position"
             cmd = raw_input(prompt)
             self.above_ball_start = get_current_pose(self.arm)
+
+            prompt = "Press Enter when Arm is out of the way for block pose selection"
+            cmd = raw_input(prompt)
 
             # loginfo("Calibrating Playing Field and Kinect Frame")
             # calibration_points = ["BOTTOM_MIDDLE", "BOTTOM_CORNER", "TOP_MIDDLE", "TOP_CORNER"]
@@ -124,6 +149,8 @@ class controller() :
         def INIT_BLOCKS():
             loginfo("Initializing Blocks")
             
+            self.move_robot(OPEN_GRIPPER, self.limb_name, Pose())
+            
             res = self.init_blocks(self.num_blocks)
             print res
 
@@ -133,16 +160,17 @@ class controller() :
 
     def PHASE3(self):
 
-        def BLOCK():
+        def _BLOCK():
             req = ActionRequest()
             req.action = BLOCK
             req.limb = self.limb_name
 
+            self.arm.set_joint_position_speed(.1)
             self.arm.set_joint_positions(self.goal_joints)
             block_res = self.block(req)
             return block_res.success
 
-        def GRAB():
+        def _GRAB():
             req = ActionRequest()
             req.action = GRAB
             req.limb = self.limb_name
@@ -160,7 +188,7 @@ class controller() :
         # def MOVE_BLOCKS():
         #     pass
 
-        def THROW():
+        def _THROW():
             req = ActionRequest()
             req.action = THROW
             req.limb = self.limb_name
@@ -171,6 +199,7 @@ class controller() :
     
         loginfo("PHASE: 3")
         self.MODE = BLOCK
+        self.goal_joints = self.arm.joint_angles()
 
         self.playing = True
         
@@ -180,7 +209,7 @@ class controller() :
                 loginfo("MODE: BLOCK")
                 # returns true when its sure the ball not going in the goal and still on our side,
                 # false if on other side
-                blocked = BLOCK()
+                blocked = _BLOCK()
                 if blocked:
                     self.MODE = GRAB
 
@@ -188,7 +217,7 @@ class controller() :
             elif self.MODE == GRAB :
                 loginfo("MODE: GRAB")
                 # returns true if grabbing was successful, false if the ball goes on the other side
-                grabbed = GRAB()
+                grabbed = _GRAB()
                 if grabbed:
                     self.MODE = THROW
                 else:
@@ -216,24 +245,25 @@ class controller() :
             elif self.MODE == THROW :
                 loginfo("MODE: THROW")
                 # returns after the throw
-                THROW()
+                _THROW()
                 self.MODE = BLOCK
 
             self.rate.sleep()
 
     def GameLoop(self):
-        if self.PHASE == 1 :
-            # returns after calibration
-            self.PHASE1()
-            self.PHASE = 2
+        while not rospy.is_shutdown():
+            if self.PHASE == 1 :
+                # returns after calibration
+                self.PHASE1()
+                self.PHASE = 2
 
-        elif self.PHASE == 2 :
-            # returns after the the blocks have been moved
-            self.PHASE2()
-            self.PHASE = 3
+            elif self.PHASE == 2 :
+                # returns after the the blocks have been moved
+                self.PHASE2()
+                self.PHASE = 3
 
-        elif self.PHASE == 3 :
-            self.PHASE3()
+            elif self.PHASE == 3 :
+                self.PHASE3()
 
     def get_tool_pos(self):
         tool_vec = self.position_server().position
@@ -243,8 +273,7 @@ class controller() :
 
 
 if __name__ == '__main__':
-    limb = 'left'
-    ct = controller(limb)
+    ct = controller()
     try:
         rospy.spin()
     except KeyboardInterrupt:
