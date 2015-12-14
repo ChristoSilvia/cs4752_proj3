@@ -115,14 +115,14 @@ class Blocker():
 		
 		self.cancel_sub = rospy.Subscriber("/action_cancel", Int32, self.cancel, queue_size=1)
 
-		self.kp_drastic = np.array([2.65, 1.3, 0.9])
-		self.ki_drastic = np.array([0.0, 0.0, 0.0])
-		self.kd_drastic = np.array([4.2, 0.0, 0.0])
+		# self.kp_drastic = np.array([2.65, 1.3, 0.9])
+		# self.ki_drastic = np.array([0.0, 0.0, 0.0])
+		# self.kd_drastic = np.array([4.2, 0.0, 0.0])
 
 		# self.kp = np.array([2.65, 1.3, 0.9, 5.0, 5.0, 5.0])
 		# self.ki = np.array([0.0, 1.5, 0.4, 0.0, 0.0, 0.0])
 		# self.kd = np.array([4.2, 0.0, 0.0, 0.0, 0.0, 0.0])
-		self.kp = np.array([2.65, 1.3, 0.9, 10.0, 10.0, 10.0])
+		self.kp = np.array([2.65, 1.3, 0.9, 4.0, 4.0, 4.0])
 		self.ki = np.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0])
 		self.kd = np.array([4.2, 0.0, 0.0, 0.0, 0.0, 0.0])
 
@@ -140,7 +140,7 @@ class Blocker():
 		self.moving_away = False
 		self.canceled = False
 
-
+		# ACTUALLY_COMMENTED_OUT
 		# COMMENTED OUT FOR TESTING
 		# self.limb.move_to_joint_positions(
 		# 	config.numpy_to_joint_dict(self.limb_name, self.goal_joint_values),
@@ -237,6 +237,7 @@ if __name__ == '__main__':
 	# limb_name = None
 	# try:
 	limb_name = rospy.get_param("limb")
+	
 	# except:
 	# 	"no limb param"
 	# if limb_name is None:

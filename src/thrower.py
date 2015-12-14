@@ -311,7 +311,7 @@ class thrower :
 
 		self.send_score_before_throw()
 		new_pose = self.ai.get_throw_pose()
-		self.arm.set_joint_position_speed(.3)
+		self.arm.set_joint_position_speed(.25)
 		
 		if self.limb == "right" :
 			new_pose = mirror_left_arm_joints(new_pose)

@@ -1,5 +1,5 @@
 <launch>
-    <param name="num_blocks" value="2" type="int"/>
+    <!-- <param name="num_blocks" value="2" type="int"/> -->
     <param name="limb" value="left" />
     <param name="ball_start" value="left" />
 
@@ -25,5 +25,5 @@
 
     <!-- <node if="$(arg rviz)" pkg="rviz" type="rviz" name="rviz" args="-d $(find cs4752_proj3)/config/plane_frame.rviz"/> -->
 
-    <node unless="$(arg calibrate)" pkg="tf" type="static_transform_publisher" name="kinect_tf" args="rosrun tf static_transform_publisher 0.0 0.54 1.56 0.706757866675 -0.706757866675 0.0222107607464 0.0222107607464 camera_rgb_optical_frame base 100"/>
+    <node unless="$(arg calibrate)" pkg="tf" type="static_transform_publisher" name="kinect_tf" args="0.0 0.54 1.56 0.706757866675 -0.706757866675 0.0222107607464 0.0222107607464 camera_rgb_optical_frame base 100"/>
 </launch>

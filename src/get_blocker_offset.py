@@ -15,7 +15,7 @@ from geometry_msgs.msg import Pose
 import baxter_interface
 
 # Parameters
-no_blocking_cutoff_velocity = 0.01
+no_blocking_cutoff_velocity = 0.02
 n_observations_until_considered_stopped = 10
 
 class GetBlockerOffset:
@@ -55,7 +55,7 @@ class GetBlockerOffset:
 		self.ball_position = config.vector3_to_numpy(data.position)
 		self.ball_velocity = config.vector3_to_numpy(data.velocity)
 
-		if (self.ball_velocity[1] < no_blocking_cutoff_velocity and self.limb_name == "left") or (self.ball_velocity[1] > -no_blocking_cutoff_velocity and self.limb_name == "right"):
+		if (self.ball_velocity[1] < no_blocking_cutoff_velocity and self.ball_position[1] > 0.0 and self.limb_name == "left") or (self.ball_velocity[1] > -no_blocking_cutoff_velocity and self.ball_position[1] < 0.0 and self.limb_name == "right"):
 			# ball is moving away, so a guard position is the best one
 			print("Ball is Stationionary, moving to Guard Position")
 			if self.n_observations_of_stopped_ball >= n_observations_until_considered_stopped:
