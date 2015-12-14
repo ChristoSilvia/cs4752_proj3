@@ -6,7 +6,7 @@ import config
 
 # ROS
 import rospy
-from geometry_msgs.msg import Point, PoseStamped
+from geometry_msgs.msg import Point, PoseStamped, Pose
 from cs4752_proj3.msg import BallPositionVelocity
 
 virtual_ball_position_saturation = np.array([0.7, 1.2])
@@ -17,6 +17,7 @@ virtual_ball_acceleration = 0.001
 center_of_field = np.array([0.6, 0.0, -0.08])
 virtual_ball_speed = 0.1 
 virtual_ball_acceleration = 0.1
+ball_bounce_zone = 0.1
 
 class DetermineVelocities:
 	def __init__(self):
@@ -26,6 +27,9 @@ class DetermineVelocities:
 		self.max_past_data_entries = 10
 		self.state = None
 		self.previous_time = None
+
+		self.center_of_field = np.array([0.56, 0.0, -0.08])
+		rospy.Subscriber('/field_center_pose', Pose, self.set_field_center)
 
 		self.pub = rospy.Publisher('/ball_position_velocity', BallPositionVelocity, 
 			queue_size=10) 
@@ -69,15 +73,18 @@ class DetermineVelocities:
 
 			predicted_position = self.state[:2] + delta_t * self.state[2:]
 			# check for collision with a top wall
-			if (predicted_position[0] > center_of_field[0] + config.field_width - config.ball_radius) or (predicted_position[0] < center_of_field[0] - config.field_width + config.ball_radius):
-				update_matrix[2,2] = -1.0
-				model_noise_matrix[2,2] += 0.1**2
+			if (predicted_position[0] > center_of_field[0] + 0.5*config.field_width - config.ball_radius - ball_bounce_zone) or (predicted_position[0] < center_of_field[0] - 0.5*config.field_width + config.ball_radius + ball_bounce_zone):
+				update_matrix[2,2] = 0.0
+				model_noise_matrix[2,2] += self.state[2]**2
+				print("Bounce off Top/Bottom")
 		
 			# check for collision with a bottom wall
-			if (predicted_position[1] > center_of_field[1] + config.field_length - config.ball_radius) or (predicted_position[1] < center_of_field[1] - config.field_length + config.ball_radius):
-				update_matrix[3,3] = -1.0
-				model_noise_matrix[3,3] += 0.1**2
-
+			if (predicted_position[1] > center_of_field[1] + 0.5*config.field_length - config.ball_radius - ball_bounce_zone) or (predicted_position[1] < center_of_field[1] - 0.5*config.field_length + config.ball_radius + ball_bounce_zone):
+				update_matrix[3,3] = 0.0
+				model_noise_matrix[3,3] += self.state[3]**2
+				print("Bounce off Left/Right")
+			print("x: {0} < {1} < {2}".format(center_of_field[0] - 0.5*config.field_width + config.ball_radius + ball_bounce_zone, predicted_position[0], center_of_field[0] + 0.5*config.field_width - config.ball_radius - ball_bounce_zone))
+			print("y: {0} < {1} < {2}".format(center_of_field[1] - 0.5*config.field_length + config.ball_radius + ball_bounce_zone, predicted_position[1],center_of_field[1] + 0.5*config.field_length - config.ball_radius - ball_bounce_zone ))
 
 			# print("Update Matrix: {0}".format(update_matrix))
 
@@ -126,6 +133,9 @@ class DetermineVelocities:
 		[0.0, 0.005**2, 0.0, 0.0],
 		[0.0, 0.0, 0.005**2, 0.0],
 		[0.0, 0.0, 0.0, 0.005**2]])
+
+	def set_field_center(self, data):
+		self.center_of_field = config.vector3_to_numpy(data.position)
 
 if __name__ == '__main__':
 	DetermineVelocities()

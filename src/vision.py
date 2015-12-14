@@ -130,6 +130,7 @@ class Vision:
 	def __init__(self):
 
 		self.vision_type = rospy.get_namespace()[1:-1]
+		# self.vision_type = 'hand'
 
 		rospy.init_node("%s_vision" % self.vision_type)
 
@@ -202,12 +203,13 @@ class Vision:
 		self.rate = rospy.Rate(30)
 		self.pixel_radius = 10#2.1539 #radius in pixels at 1 meter of orange ball
 		
-		cv2.startWindowThread()
-		cv2.namedWindow('%s %s vision' % ("pink", self.vision_type))
-		print '%s %s vision' % ("pink", self.vision_type)
+		if self.vision_type != 'hand':
+			cv2.startWindowThread()
+			cv2.namedWindow('%s %s vision' % ("pink", self.vision_type))
+			print '%s %s vision' % ("pink", self.vision_type)
 
-		cv2.startWindowThread()
-		cv2.namedWindow('%s %s vision' % ("blue", self.vision_type))
+			cv2.startWindowThread()
+			cv2.namedWindow('%s %s vision' % ("blue", self.vision_type))
 
 		print "done initializing"
 
@@ -375,8 +377,9 @@ class Vision:
 					blobsFound.append([x,y,radius])
 					cv2.circle(res, (int(x), int(y)), int(radius), (0,255,255), 2)
 
-		window_name = '%s %s vision' % (hsv_mask.color, hsv_mask.camera)
-		cv2.imshow(window_name, res)
+		if self.vision_type != 'hand':
+			window_name = '%s %s vision' % (hsv_mask.color, hsv_mask.camera)
+			cv2.imshow(window_name, res)
 
 		if not hsv_mask.calibrated:
 			hsv_mask.calibrate()

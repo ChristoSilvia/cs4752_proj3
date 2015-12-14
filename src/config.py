@@ -7,7 +7,7 @@ from geometry_msgs.msg import *
 midfield_to_ball_start = 0.5334 # from field measurement
 goal_width = 0.28
 field_length = 1.38
-field_width = 0.68
+field_width = 0.69
 gripper_width = 0.05
 gripper_depth = 0.03
 ball_radius = 0.015
@@ -183,3 +183,12 @@ def direction_of_manipulability(J, dJs, eps):
 
 		direction_of_manipulability[i] = trace
 	return direction_of_manipulability
+
+def get_current_pose(arm):
+    p = Pose()
+    pos = np.array(arm.endpoint_pose()['position'])
+    ori = np.array(arm.endpoint_pose()['orientation'])
+    p.position = Point(pos[0],pos[1],pos[2])
+    p.orientation = Quaternion(ori[0],ori[1],ori[2],ori[3])
+    return p
+

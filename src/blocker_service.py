@@ -7,12 +7,13 @@ import matplotlib.pyplot as plt
 import config
 import sys
 from copy import deepcopy
+import math
 
 # ROS
 import rospy
 from geometry_msgs.msg import *
 from std_msgs.msg import *
-from cs4752_proj3.srv import MoveRobotResponse, MoveRobot, Action
+from cs4752_proj3.srv import *
 
 # BAXTER
 import baxter_interface
@@ -33,7 +34,7 @@ goal_position = { 'left_w0': -0.08705,
 				  'left_s1': -0.49011 }
 
 
-drastic_movement_dist = 1.0
+drastic_movement_dist = 0.05
 
 class Blocker():
 	def __init__(self, limb_name, center_of_goal):
@@ -51,7 +52,9 @@ class Blocker():
 		self.y_velocity_cutoff = 5e-3
 		self.joint_position_tolerance = 0.02 
 		
-		self.center_of_goal = center_of_goal
+
+		self.center_of_goal = np.array([0.6, -0.5, -.08])
+		rospy.Subscriber('/goal_center_pose', Pose,  self.set_goal_center)
 
 		# BEGINNING OF IK
 
@@ -62,14 +65,19 @@ class Blocker():
 
 		self.blocking_orientation = np.array([np.sin(theta), np.cos(theta), 0.0, 0.0])
 
-		self.goal_joint_values = None
-		while self.goal_joint_values == None and not rospy.is_shutdown():
-			print("Trying IK")
-			self.goal_joint_values = np.array(self.limb_kin.inverse_kinematics(
-				list(self.center_of_goal),
-				orientation=list(self.blocking_orientation),
-				seed=list(config.joint_dict_to_numpy(self.limb_name, self.limb.joint_angles()))))
-		print("Found IK Solution")
+		# self.goal_joint_values = None
+		# while self.goal_joint_values is None:
+		# 	print("Trying IK")
+		# 	self.goal_joint_values = np.array(self.limb_kin.inverse_kinematics(
+		# 		list(self.center_of_goal),
+		# 		orientation=list(self.blocking_orientation),
+		# 		seed=list(config.joint_dict_to_numpy(self.limb_name, self.limb.joint_angles()))))
+		# if self.goal_joint_values is None:
+		# 	print("WHAT THE FUCK")
+		# 	raise AssertionError("fuck fuck")
+		# else:
+		# 	print("Found IK Solution")
+		# 	print(self.goal_joint_values)
 		# print(self.goal_joint_values)
 
 		# # eps = 1e-3
@@ -114,7 +122,7 @@ class Blocker():
 		# self.kp = np.array([2.65, 1.3, 0.9, 5.0, 5.0, 5.0])
 		# self.ki = np.array([0.0, 1.5, 0.4, 0.0, 0.0, 0.0])
 		# self.kd = np.array([4.2, 0.0, 0.0, 0.0, 0.0, 0.0])
-		self.kp = np.array([2.65, 1.3, 0.9, 5.0, 5.0, 5.0])
+		self.kp = np.array([2.65, 1.3, 0.9, 10.0, 10.0, 10.0])
 		self.ki = np.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0])
 		self.kd = np.array([4.2, 0.0, 0.0, 0.0, 0.0, 0.0])
 
@@ -166,41 +174,48 @@ class Blocker():
 			derivative = (error - last_error)/time_interval
 			last_error = error
 	
+			desired_twist = - self.kp * error - self.ki * integral - self.kd * derivative
+			jacobian = np.array(self.limb_kin.jacobian())
+			jacobian_pinv = np.linalg.pinv(jacobian)
+			joint_velocities = np.dot(jacobian_pinv, desired_twist)
 
-			if np.linalg.norm(error[:3]) > drastic_movement_dist:
-				print("Drastic")
-				velocity_jacobian = np.array(self.limb_kin.jacobian())[:3,:]
-				velocity_jacobian_pinv = np.linalg.pinv(velocity_jacobian)
+			# if np.linalg.norm(error[:3]) > drastic_movement_dist:
+			# 	print("Drastic")
+			# 	velocity_jacobian = np.array(self.limb_kin.jacobian())[:3,:]
+			# 	velocity_jacobian_pinv = np.linalg.pinv(velocity_jacobian)
 
-				desired_twist = - self.kp_drastic * error[:3] - self.ki_drastic * error[:3] - self.kd_drastic * error[:3]
-				joint_velocities = np.dot(velocity_jacobian_pinv, desired_twist)
-			else:
-				print("Not Drastic")
-				desired_twist = - self.kp * error - self.ki * integral - self.kd * derivative
+			# 	desired_twist = - self.kp_drastic * error[:3] - self.ki_drastic * error[:3] - self.kd_drastic * error[:3]
+			# 	joint_velocities = np.dot(velocity_jacobian_pinv, desired_twist)
+			# else:
+			# 	print("Not Drastic")
+			# 	desired_twist = - self.kp * error - self.ki * integral - self.kd * derivative
 	
-				jacobian = np.array(self.limb_kin.jacobian())
-				jacobian_null_vector = config.null(jacobian)[1][:,0]
-				jacobian_pinv = np.linalg.pinv(jacobian)
+			# 	jacobian = np.array(self.limb_kin.jacobian())
+			# 	jacobian_null_vector = config.null(jacobian)[1][:,0]
+			# 	jacobian_pinv = np.linalg.pinv(jacobian)
 
-				eps = 1e-5
-				joint_dict = self.limb.joint_angles()
-				joint_dicts = []
-				for i in xrange(7):
-					joint_dicts.append(deepcopy(joint_dict))
-					joint_dicts[i][self.limb_name+"_"+config.joint_names[i]] += eps
+			# 	eps = 1e-5
+			# 	joint_dict = self.limb.joint_angles()
+			# 	joint_dicts = []
+			# 	for i in xrange(7):
+			# 		joint_dicts.append(deepcopy(joint_dict))
+			# 		joint_dicts[i][self.limb_name+"_"+config.joint_names[i]] += eps
 
-				direction_of_manipulability = config.direction_of_manipulability(jacobian, [self.limb_kin.jacobian(joint_values=joint_dicts[i]) for i in xrange(7)], eps)
+			# 	direction_of_manipulability = config.direction_of_manipulability(jacobian, [self.limb_kin.jacobian(joint_values=joint_dicts[i]) for i in xrange(7)], eps)
 				
-				bare_joint_velocities = np.dot(jacobian_pinv, desired_twist)
+			# 	bare_joint_velocities = np.dot(jacobian_pinv, desired_twist)
 
-				t_null = config.maximize_cosine_constrained(jacobian_null_vector, bare_joint_velocities, direction_of_manipulability, self.null_norm_squared)
+			# 	t_null = config.maximize_cosine_constrained(jacobian_null_vector, bare_joint_velocities, direction_of_manipulability, self.null_norm_squared)
 
-				joint_velocities = bare_joint_velocities + t_null * jacobian_null_vector
+			# 	if math.isnan(t_null):
+			# 		joint_velocities = bare_joint_velocities
+			# 	else:
+			# 		joint_velocities = bare_joint_velocities + t_null * jacobian_null_vector
 				# joint_velocities = bare_joint_velocities
 				
-			print(joint_velocities)
-			# self.limb.set_joint_velocities(
-			# 	config.numpy_to_joint_dict(self.limb_name, joint_velocities))
+			#print(joint_velocities)
+			self.limb.set_joint_velocities(
+				config.numpy_to_joint_dict(self.limb_name, joint_velocities))
 
 		return ActionResponse(True)
 
@@ -208,6 +223,10 @@ class Blocker():
 		self.desired_position[0] = self.center_of_goal[0] + data.offset
 		self.desired_position[1] = self.center_of_goal[1] 
 		self.desired_position[2] = self.center_of_goal[2]
+		self.moving_away = not data.moving_towards
+
+	def set_goal_center(self, data):
+		self.goal_center = config.vector3_to_numpy(data.position)
 
 
 if __name__ == '__main__':
@@ -226,7 +245,7 @@ if __name__ == '__main__':
 	print("Initializing Blocker for {0} arm".format(limb_name))
 	# POSITION OF GOAL
 	left_goal = np.array([0.58,0.64,-0.06])
-	right_goal = np.array([0.58, -0.65, -0.06])
+	right_goal = np.array([0.54, -0.65, -0.06])
 	if limb_name == "left":
 		Blocker(limb_name, left_goal)
 	else:

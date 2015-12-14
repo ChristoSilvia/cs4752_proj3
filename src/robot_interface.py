@@ -145,10 +145,10 @@ class RobotInterface():
         arm = self.limb_left if limb == 'left' else self.limb_right
         hand_pose = self.getCurrentPose(arm)
         if inter1 :
-            interpose1 = self.getOffsetPose(hand_pose, .05)
+            interpose1 = self.getOffsetPose(hand_pose, .07)
             b1 = self.MoveToPose(limb, interpose1, "MoveToIntermediatePose")
         if inter2 :
-            interpose2 = self.getOffsetPose(pose, .05)
+            interpose2 = self.getOffsetPose(pose, .07)
             b2 = self.MoveToPose(limb, interpose2, "MoveToIntermediatePose")
         if inter3 :
             interpose2 = self.getOffsetPose(pose, .01)
@@ -182,7 +182,7 @@ class RobotInterface():
 
     def moveArm (self, limb, joint_solution) :
         arm = Limb(limb)
-        arm.move_to_joint_positions(joint_solution)
+        arm.move_to_joint_positions(joint_solution, timeout=5.0)
         rospy.sleep(0.01)
 
     def inverse_kinematics(self, limb, ourpose) :

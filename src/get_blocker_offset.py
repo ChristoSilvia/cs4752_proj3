@@ -9,43 +9,44 @@ import sys
 # ROS
 import rospy
 from cs4752_proj3.msg import BallPositionVelocity, BlockerOffset
+from geometry_msgs.msg import Pose
 
 # Baxter
 import baxter_interface
 
 # Parameters
 no_blocking_cutoff_velocity = 0.01
-
-field_center = np.array([0.54, 0.0, -0.08])
+n_observations_until_considered_stopped = 10
 
 class GetBlockerOffset:
 	def __init__(self, limb_name):
 		self.limb_name = limb_name
 		self.limb = baxter_interface.Limb(limb_name)
 
+		# goal center
+
 		# Iniialize Derived Parameters
-		self.goal_center = np.empty(3)
-		self.goal_center[0] = field_center[0]
-		if self.limb_name == "left":
-			self.goal_center[1] = field_center[1] + 0.5*config.field_length
+		if limb_name == "right":
+			self.goal_center = np.array([0.6, -0.5, -0.08])
 		else:
-			self.goal_center[1] = field_center[1] - 0.5*config.field_length
-		self.goal_center[2] = field_center[2]
+			self.goal_center = np.array([0.6, 0.5, -0.08])
+		rospy.Subscriber('/goal_center_pose', Pose, self.set_goal_center)
 		
 		self.gripper_x_offset = 0.0
+		self.n_observations_of_stopped_ball = 0
 		self.pub = rospy.Publisher('/blocker_offset', BlockerOffset, queue_size=10)
-		self.pub.publish(BlockerOffset(0.0))
+		self.pub.publish(BlockerOffset(0.0, True))
 
 		rospy.Subscriber('/ball_position_velocity', BallPositionVelocity, self.record_ball_position_velocity)
 
 		t_start = rospy.get_time()
 		rate = rospy.Rate(60)
 		while not rospy.is_shutdown():
-			self.pub.publish(self.gripper_x_offset)
+			self.pub.publish(BlockerOffset(self.gripper_x_offset, True))
 			# if np.sin(rospy.get_time() - t_start) > 0.0:
-			# 	self.pub.publish(BlockerOffset(0.1))
+			# 	self.pub.publish(BlockerOffset(0.1, True))
 			# else:
-			# 	self.pub.publish(BlockerOffset(0.0))
+			# 	self.pub.publish(BlockerOffset(-0.1, True))
 			rate.sleep()
 		# rospy.spin()
 
@@ -57,9 +58,14 @@ class GetBlockerOffset:
 		if (self.ball_velocity[1] < no_blocking_cutoff_velocity and self.limb_name == "left") or (self.ball_velocity[1] > -no_blocking_cutoff_velocity and self.limb_name == "right"):
 			# ball is moving away, so a guard position is the best one
 			print("Ball is Stationionary, moving to Guard Position")
-			self.gripper_x_offset = 0.0
+			if self.n_observations_of_stopped_ball >= n_observations_until_considered_stopped:
+				self.pub.publish(BlockerOffset(self.gripper_x_offset, True))
+			else:
+				self.pub.publish(BlockerOffset(self.gripper_x_offset, False))
+			self.n_observations_of_stopped_ball += 1
 			# self.pub.publish(BlockerOffset(0.0))
 		else:
+			self.n_observations_of_stopped_bal = 0
 			print("Ball is moving, intercepting")
 			if self.limb_name == "left":
 				ball_tan = self.ball_velocity[0]/self.ball_velocity[1]
@@ -91,7 +97,10 @@ class GetBlockerOffset:
 				-0.5*config.goal_width + config.gripper_depth,
 				0.5*config.goal_width - config.gripper_depth)
 
-			# self.pub.publish(BlockerOffset(self.gripper_x_offset))	
+			self.pub.publish(BlockerOffset(self.gripper_x_offset, True))
+
+	def set_goal_center(self, data):
+		self.goal_center = config.vector3_to_numpy(data.position)
 					
 if __name__ == '__main__':
 	rospy.init_node('get_blocker_offset')

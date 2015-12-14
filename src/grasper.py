@@ -6,7 +6,7 @@ import cv2
 import time
 from cs4752_proj3.srv import *
 from cs4752_proj3.msg import *
-from std_msgs.msg import String, Header
+from std_msgs.msg import String, Header, Int32
 from geometry_msgs.msg import Pose, Quaternion, Point, PoseArray, PoseStamped
 from sensor_msgs.msg import Image, CameraInfo
 from cv_bridge import CvBridge, CvBridgeError
@@ -36,6 +36,10 @@ class grasper:
 
 		self.limb = Limb(self.limb_name)
 
+		self.objs = {}
+		self.objs['pink'] = None
+		self.objs['blue'] = None
+
 		self.transform_listener = tf.TransformListener()
 
 		self.move_robot = createServiceProxy("move_robot", MoveRobot, "")
@@ -51,13 +55,11 @@ class grasper:
 
 		self.rate = rospy.Rate(30)
 
-		self.objs = {}
-		self.objs['pink'] = None
-		self.objs['blue'] = None
+		
 
 		print "done initializing"
 
-		self.grasp("")
+		# self.grasp("")
 
 	def cancel(self, msg):
 		if msg.data == GRAB:
@@ -73,8 +75,8 @@ class grasper:
 		self.objs["blue"] = data
 
 	def grasp(self, req):
-		# color = req.arg
-		color = 'pink'
+		color = req.arg
+		# color = 'pink'
 		grasped = False
 		self.canceled = False
 		# self.move_robot(MOVE_TO_POSE, self.limb_name, req.pose)
