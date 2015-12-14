@@ -52,25 +52,25 @@ class Blocker():
 		self.y_velocity_cutoff = 5e-3
 		self.joint_position_tolerance = 0.02 
 		
-		self.center_of_goal = center_of_goal
-		# BEGINNING OF IK
+		# self.center_of_goal = center_of_goal
+		# # BEGINNING OF IK
 
-		if self.limb_name == "left":
-			theta = -0.25*np.pi
-		else:
-			theta = 0.25*np.pi
+		# if self.limb_name == "left":
+		# 	theta = -0.25*np.pi
+		# else:
+		# 	theta = 0.25*np.pi
 
-		self.blocking_orientation = np.array([np.sin(theta), np.cos(theta), 0.0, 0.0])
+		# self.blocking_orientation = np.array([np.sin(theta), np.cos(theta), 0.0, 0.0])
 
-		goal_joint_values = None
-		while goal_joint_values == None and not rospy.is_shutdown():
-			print("Trying IK")
-			goal_joint_values = np.array(self.limb_kin.inverse_kinematics(
-				list(self.center_of_goal),
-				orientation=list(self.blocking_orientation),
-				seed=list(config.joint_dict_to_numpy(self.limb_name, self.limb.joint_angles()))))
-		print("Found IK Solution")
-		print(goal_joint_values)
+		# goal_joint_values = None
+		# while goal_joint_values == None and not rospy.is_shutdown():
+		# 	print("Trying IK")
+		# 	goal_joint_values = np.array(self.limb_kin.inverse_kinematics(
+		# 		list(self.center_of_goal),
+		# 		orientation=list(self.blocking_orientation),
+		# 		seed=list(config.joint_dict_to_numpy(self.limb_name, self.limb.joint_angles()))))
+		# print("Found IK Solution")
+		# print(goal_joint_values)
 
 		# # eps = 1e-3
 		# # joint_angle_error_index = np.argmin([np.abs(goal_joint_values[6] - 0.5*np.pi), 
@@ -91,11 +91,11 @@ class Blocker():
 		# # print("Finished Minimizing Joint Angle Error")
 
 		# #self.limb.move_to_joint_positions(goal_position)
-		print("Beginning to Move to Goal Pose")
-		self.limb.move_to_joint_positions(
-			config.numpy_to_joint_dict(self.limb_name, goal_joint_values),
-			threshold=self.joint_position_tolerance)
-		print("Completed Moving to Goal Pose")
+		# print("Beginning to Move to Goal Pose")
+		# self.limb.move_to_joint_positions(
+		# 	config.numpy_to_joint_dict(self.limb_name, goal_joint_values),
+		# 	threshold=self.joint_position_tolerance)
+		# print("Completed Moving to Goal Pose")
 
 		# END OF IK
 

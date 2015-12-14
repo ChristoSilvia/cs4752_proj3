@@ -62,15 +62,20 @@ class controller() :
         self.GameLoop()
 
     def game_state_callback(self, msg):
-        pass
+        self.PHASE = msg.current_phase
 
     def ball_pos_vel_callback(self, msg):
         if msg.position.y > 0:
             self.ball_on_side = 'left'
-            "ball on left side"
-        if msg.position.y > 0:
+            # print "ball on left side"
+        if msg.position.y < 0:
             self.ball_on_side = 'right'
-            "ball on right side"
+            # print "ball on right side"
+
+        # if self.ball_on_side == self.limb_name:
+        #     print "Ball is on our side"
+        #     if self.MODE == BLOCK:
+        #         s
 
     def PHASE1(self):
         loginfo("PHASE: 1")
@@ -199,7 +204,6 @@ class controller() :
 
         elif self.PHASE == 2 :
             # returns after the the blocks have been moved
-            "got here"
             self.PHASE2()
             self.PHASE = 3
 

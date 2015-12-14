@@ -10,6 +10,7 @@ field_length = 1.38
 field_width = 0.68
 gripper_width = 0.05
 gripper_depth = 0.03
+ball_radius = 0.015
 
 joint_names = ['s0', 's1', 'e0', 'e1', 'w0', 'w1', 'w2']
 
@@ -70,15 +71,18 @@ def joint_dict_to_numpy(limb, joint_dict):
 
 def quaternion_to_numpy(q):
 	return np.array([q.x, q.y, q.z, q.w])
+			# 	self.pub.publish(BlockerOffset(0.1))
+			# else:
+			# 	self.pub.pu
 
 def invert_unit_quaternion(q):
-        return np.array([-q[0], -q[1], -q[2], q[3]])
+		return np.array([-q[0], -q[1], -q[2], q[3]])
 
 def multiply_quaternion(q_0, q_1):
 	return np.array([ q_0[0]*q_1[3] + q_0[3]*q_1[0] - q_0[1]*q_1[2] + q_0[2]*q_1[1],
-                       q_0[1]*q_1[3] + q_0[3]*q_1[1] - q_0[0]*q_1[2] + q_0[2]*q_1[0],
-                       q_0[2]*q_1[3] + q_0[3]*q_1[2] - q_0[1]*q_1[0] + q_0[0]*q_1[1],
-                       q_0[3]*q_1[3] - q_0[0]*q_1[0] - q_0[1]*q_1[1] - q_0[2]*q_1[2] ])
+					   q_0[1]*q_1[3] + q_0[3]*q_1[1] - q_0[0]*q_1[2] + q_0[2]*q_1[0],
+					   q_0[2]*q_1[3] + q_0[3]*q_1[2] - q_0[1]*q_1[0] + q_0[0]*q_1[1],
+					   q_0[3]*q_1[3] - q_0[0]*q_1[0] - q_0[1]*q_1[1] - q_0[2]*q_1[2] ])
 
 def mirror_left_arm_joints(new_pos):
 
@@ -109,14 +113,14 @@ def mirror_left_arm_joints(new_pos):
 	return new_pos
 
 def null(a, rtol=1e-5):
-    # http://stackoverflow.com/questions/19820921/a-simple-matlab-like-way-of-finding-the-null-space-of-a-small-matrix-in-numpy
-    u, s, v = np.linalg.svd(a)
-    rank = (s > rtol*s[0]).sum()
-    return rank, v[rank:].T.copy()
+	# http://stackoverflow.com/questions/19820921/a-simple-matlab-like-way-of-finding-the-null-space-of-a-small-matrix-in-numpy
+	u, s, v = np.linalg.svd(a)
+	rank = (s > rtol*s[0]).sum()
+	return rank, v[rank:].T.copy()
 
 def get_angular_error(desired, actual):
-	relative_orientation = config.multiply_quaternion(actual, 
-		config.invert_unit_quaternion(desired))
+	relative_orientation = multiply_quaternion(actual, 
+		invert_unit_quaternion(desired))
 	relative_orientation_angle = 2.0*np.arccos(relative_orientation[3])
 	if relative_orientation_angle < 1e-6:
 		return np.zeros(3)
@@ -126,3 +130,56 @@ def get_angular_error(desired, actual):
 		return orientation_error
 	
 
+def maximize_cosine_constrained(a,b,c,n2):
+	# find t to maximize cosine between a t + b and c, with norm no greater than n2
+	#
+	# same as maximize_cosine but the result should have norm no greater than n^2
+	# loginfo(a)
+	# already normalized by the norm routine
+	aa = np.dot(a,a)
+	#loginfo(np.dot(a,a))
+	#loginfo(b)
+	ab = np.dot(a,b)
+	#loginfo(ab)
+	ac = np.dot(a,c)
+	bc = np.dot(b,c)
+	bb = np.dot(b,b)
+	#loginfo("Computed Products")
+	ab_over_aa = ab/aa
+	lower_root = - ab_over_aa - np.sqrt(ab_over_aa**2 + (n2 - bb)/aa)
+	upper_root = - ab_over_aa + np.sqrt(ab_over_aa**2 + (n2 - bb)/aa)
+
+	s = (bc*ab - bb*ac)/(ab*ac - aa*bc)
+	is_maximum = 2*ab*ac*s*s + (ab*ab*ac + 3*aa*ac*bb)*s + (aa*bc + 2*ab*ac)*bb > 2*bc*aa*aa*s*s + bc*ab*ab
+	if is_maximum:
+		#loginfo("Maximum")
+		return np.clip(s, lower_root, upper_root)
+	else:
+		#loginfo("Minimum")
+		upper_vec = a * upper_root + b
+		lower_vec = a * lower_root + b
+		upper_cos = np.dot(upper_vec,c)/np.sqrt(np.dot(upper_vec,upper_vec)*np.dot(c,c))
+		lower_cos = np.dot(lower_vec,c)/np.sqrt(np.dot(lower_vec,lower_vec)*np.dot(c,c))
+		if upper_cos > lower_cos:
+			return upper_root
+		else:
+			return lower_root
+
+def direction_of_manipulability(J, dJs, eps):
+	J_squared = np.dot(J, J.T)
+	J_squared_inv = np.linalg.inv(J_squared)
+
+	direction_of_manipulability = np.empty(7)
+	for i in xrange(0,7):
+
+		dJ = (dJs[i] - J)/eps
+
+		dJSquared = np.dot(J,dJ.T) + np.dot(dJ,J.T)
+
+		trace = 0.0
+		for j in xrange(0,6):
+			for k in xrange(0,6):
+				trace += J_squared_inv[j,k] * dJSquared[k,j]
+
+		direction_of_manipulability[i] = trace
+	return direction_of_manipulability

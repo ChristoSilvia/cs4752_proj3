@@ -401,7 +401,7 @@ def maximize_cosine_constrained(a,b,c,n2):
     # same as maximize_cosine but the result should have norm no greater than n^2
     # loginfo(a)
     # already normalized by the norm routine
-    aa = 1.0
+    aa = np.dot(a,a)
     #loginfo(np.dot(a,a))
     #loginfo(b)
     ab = np.dot(a,b)

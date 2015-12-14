@@ -2,7 +2,7 @@
 
 # python
 import numpy as np
-import matplotlib.pyplot as plt
+import config
 
 # ROS
 import rospy
@@ -11,8 +11,8 @@ from cs4752_proj3.msg import BallPositionVelocity
 
 virtual_ball_position_saturation = np.array([0.7, 1.2])
 virtual_ball_velocity_saturation = np.array([0.3, 1.0])
-virtual_ball_speed = 0.05
-virtual_ball_acceleration = 0.01
+virtual_ball_speed = 0.005
+virtual_ball_acceleration = 0.001
 
 center_of_field = np.array([0.6, 0.0, -0.08])
 virtual_ball_speed = 0.1 
@@ -34,10 +34,10 @@ class DetermineVelocities:
 		rospy.spin()
 
 	def handle_data(self, data):
-		print("Recieved Data")
+		# print("Recieved Data")
 		t = data.header.stamp.secs + 1e-9*data.header.stamp.nsecs
 		position = np.array([data.pose.position.x, data.pose.position.y])
-		print("Ball Position: {0}".format(position))
+		# print("Ball Position: {0}".format(position))
 		state = np.array([data.pose.position.x, data.pose.position.y, 0.0, 0.0])
 
 		if self.state is None:
@@ -56,11 +56,16 @@ class DetermineVelocities:
 				[0.0, 0.0, 1.0, 0.0],
 				[0.0, 0.0, 0.0, 1.0]])
 
-    		model_noise_matrix = np.array([
-	    		[((2.0/np.pi)*virtual_ball_position_saturation[0]*np.arctan((2.0/np.pi)*(virtual_ball_speed/virtual_ball_position_saturation)*delta_t)**2, 0.0, 0.0, 0.0],
-		    	[0.0, ((2.0/np.pi)*virtual_ball_position_saturation[1]*np.arctan((2.0/np.pi)*(virtual_ball_speed/virtual_ball_position_saturation)*delta_t))**2, 0.0, 0.0],
-			   	[0.0, 0.0, ((2.0/np.pi)*virtual_ball_velocity_saturation[0]*np.arctan((2.0/np.pi)*(virtual_ball_acceleration/virtual_ball_velocity_saturation[0]*delta_t)**2, 0.0],
-			    [0.0, 0.0, 0.0, ((2.0/np.pi)*virtual_ball_velocity_saturation[1]*np.arctan((2.0/np.pi)*(virtual_ball_acceleration/virtual_ball_velocity_saturation[1]*delta_t)**2]])
+			model_noise_matrix = np.array([
+			[((2.0/np.pi)*virtual_ball_position_saturation[0]*np.arctan((2.0/np.pi)*(virtual_ball_speed/virtual_ball_position_saturation[0])*delta_t))**2, 0.0, 0.0, 0.0],
+				[0.0, ((2.0/np.pi)*virtual_ball_position_saturation[1]*np.arctan((2.0/np.pi)*(virtual_ball_speed/virtual_ball_position_saturation[1])*delta_t))**2, 0.0, 0.0],
+				[0.0, 0.0, ((2.0/np.pi)*virtual_ball_velocity_saturation[0]*np.arctan((2.0/np.pi)*(virtual_ball_acceleration/virtual_ball_velocity_saturation[0])*delta_t))**2, 0.0],
+				[0.0, 0.0, 0.0, ((2.0/np.pi)*virtual_ball_velocity_saturation[1]*np.arctan((2.0/np.pi)*(virtual_ball_acceleration/virtual_ball_velocity_saturation[1])*delta_t))**2]])
+			# model_noise_matrix = np.array([
+			# 	[0.05**2, 0.0, 0.0, 0.0],
+				# [0.0, 0.05**2, 0.0, 0.0],
+				# [0.0, 0.0, 0.01**2, 0.0],
+				# [0.0, 0.0, 0.0, 0.01**2]])
 
 			predicted_position = self.state[:2] + delta_t * self.state[2:]
 			# check for collision with a top wall
@@ -74,7 +79,7 @@ class DetermineVelocities:
 				model_noise_matrix[3,3] += 0.1**2
 
 
-			print("Update Matrix: {0}".format(update_matrix))
+			# print("Update Matrix: {0}".format(update_matrix))
 
 			offset = np.array([0.0, 0.0, 0.0, 0.0])
 
@@ -87,14 +92,14 @@ class DetermineVelocities:
 			# predict
 			predicted_state = np.dot(update_matrix, self.state) + offset
 			predicted_covariance = np.dot(update_matrix,np.dot(self.covariance, update_matrix.T)) + model_noise_matrix
-			print("Predicted State: {0}".format(predicted_state))
-			print("Predicted Covariance: {0}".format(predicted_covariance))
+			# print("Predicted State: {0}".format(predicted_state))
+			# print("Predicted Covariance: {0}".format(predicted_covariance))
 			
 			# compute error
 			measurement = np.empty(4)
 			measurement[:2] = position
 			measurement[2:] = self.previous_position
-			print("Measured State: {0}".format(measurement))
+			# print("Measured State: {0}".format(measurement))
 			error_in_mean = measurement - np.dot(state_to_measurement_matrix, predicted_state)
 			error_in_covariance = np.dot(state_to_measurement_matrix, 
 				np.dot(predicted_covariance, state_to_measurement_matrix.T)) + self.measurement_noise
@@ -108,6 +113,7 @@ class DetermineVelocities:
 			
 			self.pub.publish(BallPositionVelocity(t, Point(self.state[0], self.state[1], 0), Point(self.state[2], self.state[3], 0)))
 			self.previous_position = position
+			# print("Resultant State: {0}".format(self.state))
 
 	state_no_info_covariance = np.array(
 		[[0.03 ** 2, 0.0, 0.0, 0.0],
@@ -116,10 +122,10 @@ class DetermineVelocities:
 		[0.0, 0.0, 0.0, 0.5 ** 2]])
 
 	measurement_noise = np.array(
-		[[0.01**2, 0.0, 0.0, 0.0],
-		[0.0, 0.01**2, 0.0, 0.0],
-		[0.0, 0.0, 0.01**2, 0.0],
-		[0.0, 0.0, 0.0, 0.01**2]])
+		[[0.005**2, 0.0, 0.0, 0.0],
+		[0.0, 0.005**2, 0.0, 0.0],
+		[0.0, 0.0, 0.005**2, 0.0],
+		[0.0, 0.0, 0.0, 0.005**2]])
 
 if __name__ == '__main__':
 	DetermineVelocities()
