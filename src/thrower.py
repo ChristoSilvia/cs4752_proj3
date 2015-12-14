@@ -405,10 +405,9 @@ class thrower :
 		if self.limb == 'right':
 			new_pos = mirror_left_arm_joints(new_pos)
 
-		self.gripper.command_position(100, block=True)
 		self.arm.move_to_joint_positions(new_pos)
 		rospy.sleep(1)
-		self.gripper.command_position(0, block=True)
+		
 
 	
 
