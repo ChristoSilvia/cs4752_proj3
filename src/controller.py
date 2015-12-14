@@ -166,9 +166,9 @@ class controller() :
             req.action = BLOCK
             req.limb = self.limb_name
 
-            # self.arm.set_joint_position_speed(.1)
-            
-            self.move_robot(MOVE_TO_POSE, self.limb_name, self.goal_center_pose)
+            self.arm.set_joint_position_speed(.2)
+            # self.goal_center_pose = get_current_pose(self.arm)
+            self.move_robot(MOVE_TO_POSE_INTERMEDIATE, self.limb_name, self.goal_center_pose)
             block_res = self.block(req)
             return block_res.success
 
@@ -178,7 +178,7 @@ class controller() :
             req.limb = self.limb_name
             req.arg = 'pink'
             
-            self.move_robot(MOVE_TO_POSE, self.limb_name, self.above_ball_start)
+            self.move_robot(MOVE_TO_POSE_INTERMEDIATE, self.limb_name, self.above_ball_start)
             grasp_res = self.grasp(req)
             return grasp_res.success
 

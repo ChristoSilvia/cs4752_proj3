@@ -36,7 +36,7 @@ class RobotInterface():
         
         move_robot_service = createService('move_robot', MoveRobot, self.handle_move_robot, "")
 
-        self.position_srv = createService('end_effector_position', EndEffectorPosition, self.get_position_response, self.limb)
+        # self.position_srv = createService('end_effector_position', EndEffectorPosition, self.get_position_response, self.limb)
 
         try :
             rospy.loginfo("Initializing service proxy for /SolvePositionIK...")

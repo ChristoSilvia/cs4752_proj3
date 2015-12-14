@@ -37,7 +37,7 @@ goal_position = { 'left_w0': -0.08705,
 drastic_movement_dist = 0.05
 
 class Blocker():
-	def __init__(self, limb_name):
+	def __init__(self, limb_name, center_of_goal):
 		self.limb_name = limb_name		
 		self.limb = baxter_interface.Limb(limb_name)
 		self.joint_names = self.limb.joint_names()
@@ -53,7 +53,7 @@ class Blocker():
 		self.joint_position_tolerance = 0.02 
 		
 
-		self.center_of_goal = self.limb
+		self.center_of_goal = center_of_goal
 		rospy.Subscriber('/goal_center_pose', Pose,  self.set_goal_center)
 
 		# BEGINNING OF IK
@@ -234,19 +234,19 @@ if __name__ == '__main__':
 	print("Initialized node 'blocker'")
 	baxter_interface.RobotEnable(baxter_interface.CHECK_VERSION).enable()
 
-	limb_name = None
-	try:
-		limb_name = rospy.get_param("limb")
-	except:
-		"no limb param"
-	if limb_name is None:
-		limb_name = sys.argv[1]
-	assert (limb_name == "left" or limb_name == "right")
-	print("Initializing Blocker for {0} arm".format(limb_name))
+	# limb_name = None
+	# try:
+	limb_name = rospy.get_param("limb")
+	# except:
+	# 	"no limb param"
+	# if limb_name is None:
+	# 	limb_name = sys.argv[1]
+	# assert (limb_name == "left" or limb_name == "right")
+	# print("Initializing Blocker for {0} arm".format(limb_name))
 	# POSITION OF GOAL
-	# left_goal = np.array([0.58,0.64,-0.06])
-	# right_goal = np.array([0.54, -0.65, -0.06])
+	left_goal = np.array([0.58,0.64,-0.06])
+	right_goal = np.array([0.54, -0.65, -0.06])
 	if limb_name == "left":
-		Blocker(limb_name)
+		Blocker(limb_name, left_goal)
 	else:
-		Blocker(limb_name) 
+		Blocker(limb_name, right_goal) 

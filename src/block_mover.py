@@ -36,7 +36,7 @@ class block_mover() :
 
         self.get_desired_block_poses = createServiceProxy("get_desired_block_poses", BlockPoses, "")
 
-        self.position_srv = createServiceProxy('end_effector_position', EndEffectorPosition, self.limb_name)
+        # self.position_srv = createServiceProxy('end_effector_position', EndEffectorPosition, self.limb_name)
 
         init_blocks = createService("init_blocks", BlockPoses, self.setDesiredBlockPoses, "")
         self.arm = baxter_interface.Limb(self.limb_name)
@@ -52,6 +52,7 @@ class block_mover() :
         ori = np.array(self.arm.endpoint_pose()['orientation'])
         self.initial_pose.position = Point(pos[0],pos[1],pos[2])
         self.initial_pose.orientation = Quaternion(ori[0],ori[1],ori[2],ori[3])
+        
         # print self.initial_pose
 
         self.table_z = self.initial_pose.position.z - ((self.num_blocks -1) * self.block_size)
@@ -73,7 +74,7 @@ class block_mover() :
 
         for desired_block_pose in self.desired_block_poses:
             desired_block_pose.orientation = deepcopy(self.initial_pose.orientation)
-            desired_block_pose.position.z = deepcopy(self.table_z)
+            # desired_block_pose.position.z = deepcopy(self.table_z)
 
         print self.desired_block_poses
         print self.num_blocks
