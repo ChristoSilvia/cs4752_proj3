@@ -32,6 +32,7 @@ class GetBlockerOffset:
 		self.goal_center[2] = field_center[2]
 		
 		self.pub = rospy.Publisher('/blocker_offset', BlockerOffset, queue_size=10)
+		self.pub.publish(BlockerOffset(0.0))
 
 		rospy.Subscriber('/ball_position_velocity', BallPositionVelocity, self.record_ball_position_velocity)
 

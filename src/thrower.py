@@ -126,47 +126,71 @@ class thrower_ai :
 		self.score_window = 15
 
 	def score_before_throw(self, our_s, our_p, enemy_s, enemy_p) :
+		print "Sending AI Score so we know how it changes after throw"
+		print our_s, our_p, enemy_s, enemy_p
 		self.our_score = our_s
 		self.our_penalties = our_p
 		self.enemy_score = enemy_s
 		self.enemy_penalties = enemy_p
-		self.throw_time = throwtime
+		#self.throw_time = throwtime
 	
 
 	#call this, so robot can update throw, either keeping current, or adjusting strategy
 	def score_after_throw(self, our_s, our_p, enemy_s, enemy_p) :
+
+		print "Score after Throw received in AI"
 
 		gain = (our_s - self.our_score) + (enemy_p - self.enemy_penalties)
 		loss = (enemy_s - self.enemy_score) + (our_p - self.our_penalties)
 		net_gain = gain - loss
 		self.net_gains[self.current_category] += net_gain
 
+		print "Net gain: %d" % net_gain
+		print "using index : %d from category : %s" % (self.throw_state[self.current_category], self.current_category)
+
+		if net_gain > 0 :
+			print ""
+			print "Scored or gave the opponent a penalty same thinG!!!!!!"
+			print ""
+
+		if net_gain < 0 :
+			print ""
+			print "That throw was SHIT or they scored"
+			print ""
 
 		#change the throw of this state, not worth trying again...
 		if net_gain <= 0 :
 			self.throw_state[self.current_category] = (self.throw_state[self.current_category] + 1) % 3
-
+			
 			#uppers have failed twice, we need to change
 			if self.current_category == 'uppers' and self.net_gains['uppers'] <= -2 :
-				if self.net_gains['middles'] >= self.net_gains['uppers'] || self.net_gains['banks'] >= self.net_gains['middles'] :
+				print "Uppers failed twice"
+
+				if self.net_gains['middles'] >= self.net_gains['uppers'] or self.net_gains['banks'] >= self.net_gains['middles'] :
 					if self.net_gains['middles'] >= self.net_gains['banks'] :
 						self.current_category = 'middles'
+						print "Switching from Uppers to Middles"
 					else :
 						self.current_category = 'banks'
+						print "Switching from Uppers to Banks"
 
 			elif self.current_category == 'middles' :
-				if self.net_gains['uppers'] >= self.net_gains['middles'] || self.net_gains['banks'] >= self.net_gains['middles'] :
+				if self.net_gains['uppers'] >= self.net_gains['middles'] or self.net_gains['banks'] >= self.net_gains['middles'] :
 					if self.net_gains['uppers'] >= self.net_gains['banks'] :
 						self.current_category = 'uppers'
+						print "Switching from Middles to uppers"
 					else :
 						self.current_category = 'banks'
+						print "Switching from Middles to banks"
 
 			elif self.current_category == 'banks' :
-				if self.net_gains['uppers'] >= self.net_gains['banks'] || self.net_gains['middles'] >= self.net_gains['banks'] :
+				if self.net_gains['uppers'] >= self.net_gains['banks'] or self.net_gains['middles'] >= self.net_gains['banks'] :
 					if self.net_gains['uppers'] >= self.net_gains['middles'] :
 						self.current_category = 'uppers'
+						print "Switching from banks to uppers"
 					else :
 						self.current_category = 'middles'
+						print "Switching from banks to middles"
 
 
 	def get_throw_pose(self) :
@@ -179,7 +203,7 @@ class thrower_ai :
 			index = outerIndex
 		elif state == 2 :
 			index = random.randint(innerIndex+1, outerIndex-1) 
-		return (self.throw_positions[self.current_category])[index]]
+		return (self.throw_positions[self.current_category])[index]
 	
 
 
@@ -192,6 +216,8 @@ class thrower :
 		init_state = rs.state().enabled
 
 		self.move_robot = createServiceProxy("move_robot", MoveRobot, "")
+
+		self.canceled = False
 
 		self.game_state = GameState()
 		self.game_state.score = [0,0]
@@ -213,9 +239,10 @@ class thrower :
 
 		self.ai = thrower_ai()
 
+		rapidFireTesting = False
 
-		rate = Rate(.09)
-		while not rospy.shutdown() :
+		rate = rospy.Rate(.09)
+		while not rospy.is_shutdown() :
 
 
 			print "-----------CURRENT ARM POSITIONS------------"
@@ -223,33 +250,23 @@ class thrower :
 
 
 			#use this code to test new arm positions and recently recorded ones
-			#if False:
-			#	self.testLeftArmInitialPositions(45)
-			#else :
-			#	self.gripper.command_position(100, block=True)
-			#	rospy.sleep(4)
-			#	self.gripper.command_position(0, block=True)
+			if rapidFireTesting:
+				if False:
+					self.testLeftArmInitialPositions(45)
+				else :
+					self.gripper.command_position(100, block=True)
+					rospy.sleep(4)
+					self.gripper.command_position(0, block=True)
 
-
-
-
-			new_pose = self.ai.get_throw_pose()
-			self.send_score_before_throw()
-
-
-			if self.canceled:
-				return ActionResponse(False)
-
-			if self.limb == "right" :
-				new_pose = mirror_left_arm_joints(new_pose)
-			self.arm.move_to_joint_positions(new_pose)
-        
-	
 			
-
+			# self.arm.move_to_joint_positions(new_pose)
 
 			# throw the ball
-			self.throw()
+			# self.throw()
+
+			req = ActionRequest()
+			resp = self.throw_srv(req)
+			print resp
 
 			rate.sleep()
 	
@@ -258,24 +275,24 @@ class thrower :
 
 	def update_scores(self, msg) :
 		self.game_state = deepcopy(msg)
-		
 
 
 	def send_score_before_throw(self) :
 		gs = self.game_state
 		our_team = 1
 		enemy_team = 0
-		if self.limb == 'left'
+		if self.limb == 'left' :
 			our_team = 0
 			enemy_team = 1
 		if gs != None :
 			self.ai.score_before_throw(gs.score[our_team], gs.penalty[our_team], gs.score[enemy_team], gs.penalty[enemy_team])
 	
 	def send_score_after_throw(self) :
+		print "In thrower!!!!! send score after throw"
 		gs = self.game_state
 		our_team = 1
 		enemy_team = 0
-		if self.limb == 'left'
+		if self.limb == 'left' :
 			our_team = 0
 			enemy_team = 1
 		if gs != None :
@@ -287,26 +304,23 @@ class thrower :
 		if self.canceled:
 			return ActionResponse(False)
 		
-		
-
-
 		if self.canceled:
 			return ActionResponse(False)
 
-
-		new_pose = self.ai.get_throw_pose()
 		self.send_score_before_throw()
-
+		new_pose = self.ai.get_throw_pose()
+		
 		if self.limb == "right" :
 			new_pose = mirror_left_arm_joints(new_pose)
-		self.arm.move_to_joint_positions(new_pose)
-		
-		self.throw()
 
-		Timer(10, self.send_score_after_throw, ()).start()
+		print "Pose from ai::"
+		print new_pose
+		# self.arm.move_to_joint_positions(new_pose)
+		
+		# self.throw()
 
 		#start coroutine to ping score after 10 seconds
-		s = sched.scheduler(time.time, time.sleep)
+		Timer(10, self.send_score_after_throw, ()).start()
 
 		return ActionResponse(True)
 
@@ -341,16 +355,6 @@ class thrower :
 			new_pose = {'w0': -2.4708595512634277, 'w1': -0.01457281746826172, 'w2': 0.027611654150390626, 'e0': -2.625791610662842, 'e1': 0.5426457030944825, 's0': -0.08858739039916992, 's1': -0.796519523199463}
 
 
-
-
-		shots = {}
-		shots["high"]
-		shots["high"]["left"]
-		shots["high"]["mid"]
-		shots["high"]["right"]
-		shots["high"]["right"]
-		shots["med"]
-		shots["low"]
 
 		if self.limb == "right" :
 			new_pose = mirror_left_arm_joints(new_pose)

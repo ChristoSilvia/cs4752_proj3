@@ -109,6 +109,10 @@ class Blocker():
 		self.ki = np.array([0.0, 1.5, 0.4, 0.0, 0.0, 0.0])
 		self.kd = np.array([4.2, 0.0, 0.0, 0.0, 0.0, 0.0])
 
+		self.block()
+
+		rospy.spin()
+
 	def cancel(self, msg):
 		if msg.data == BLOCK:
 			self.canceled = True
@@ -137,19 +141,13 @@ class Blocker():
 			jacobian = np.array(self.limb_kin.jacobian())
 			jacobian_pinv = np.linalg.pinv(jacobian)
 
-			position = config.vector3_to_numpy(self.limb.endpoint_pose()['position'])
+			endpoint_pose = self.limb.endpoint_pose()
+			position = config.vector3_to_numpy(endpoint_pose['position'])
 			error[:3] = position - self.desired_position
 
+			
 			orientation = config.quaternion_to_numpy(endpoint_pose['orientation'])
-			relative_orientation = config.multiply_quaternion(orientation, 
-				config.invert_unit_quaternion(self.desired_orientation))
-			relative_orientation_angle = 2.0*np.arccos(relative_orientation[3])
-			if relative_orientation_angle < 1e-6:
-				error[3:] = np.zeros(3)
-			else:
-				relative_orientation_axis = relative_orientation[:3]/np.sin(0.5*relative_orientation_angle)
-				orientation_error = relative_orientation_angle*relative_orientation_axis
-				error[3:] = orientation_error
+			error[3:] = config.get_angular_error(self.desired_orientation, orientation)
 			
 			current_time = rospy.get_time()
 			time_interval = current_time - last_time
@@ -168,72 +166,11 @@ class Blocker():
 
 		return ActionResponse(True)
 
-	def handle_position_velocity(self, data):
-		# print("Recieved Data")
-		# print("=============")
-		ball_position = config.vector3_to_numpy(data.position)
-		ball_velocity = config.vector3_to_numpy(data.velocity)
-		# print("Ball Position: {0}".format(ball_position))
-		# print("Ball Velocity: {0}".format(ball_velocity))
-		
-		self.ts.append(rospy.get_time() - self.start_time)
+	def handle_offset_update(self, data):
+		self.desired_position[0] = self.center_of_goal[0]
+		self.desired_position[1] = self.center_of_goal[1] + data.offset
+		self.desired_position[2] = self.center_of_goal[2]
 
-		if (ball_velocity[1] < self.y_velocity_cutoff and self.limb_name == "left") or (ball_velocity[1] > -self.y_velocity_cutoff and self.limb_name == "right"):
-		# if False:
-			# print("Ball is Moving Away, going to Guard Position")
-			self.unnormalized_ball_poses.append(self.center_of_goal[0])
-			self.reflected_ball_poses.append(self.center_of_goal[0])
-			self.desired_position[0] = self.center_of_goal[0]
-			self.desired_position[1] = self.center_of_goal[1]
-			self.desired_position[2] = self.center_of_goal[2]
-			self.moving_away = True
-		else:
-			if self.limb_name == "left":
-				ball_tan = ball_velocity[0]/ball_velocity[1]
-
-			else:
-				ball_tan = ball_velocity[0]/(-ball_velocity[1])
-
-			# print ball_tan
-
-			dist_to_goal = np.abs(self.center_of_goal[1] - ball_position[1]) - self.gripper_depth
-			# print("Ball Y Distance to Goal: {0}".format(dist_to_goal))
-
-			no_walls_ball_hit_offset = ball_tan*dist_to_goal + (ball_position[0] - self.center_of_goal[0])
-
-
-			self.unnormalized_ball_poses.append(no_walls_ball_hit_offset + self.center_of_goal[0])
-
-			no_walls_ball_hit_sign = np.sign(no_walls_ball_hit_offset)
-			absed_modded_no_walls_ball_hit_offset = np.abs(no_walls_ball_hit_offset) #% 2.0*self.field_width
-
-			if absed_modded_no_walls_ball_hit_offset > 0.5*self.field_width and absed_modded_no_walls_ball_hit_offset < 1.5*self.field_width:
-				ball_hit_offset = no_walls_ball_hit_sign*(self.field_width - absed_modded_no_walls_ball_hit_offset)
-			elif absed_modded_no_walls_ball_hit_offset > 1.5*self.field_width:
-				ball_hit_offset = no_walls_ball_hit_sign*(2.0*self.field_width - absed_modded_no_walls_ball_hit_offset)
-			else:
-				ball_hit_offset = no_walls_ball_hit_sign*absed_modded_no_walls_ball_hit_offset
-
-
-			# print type(no_walls_ball_hit_location)
-			# print no_walls_ball_hit_location
-			# self.test_block_pub.publish(Float64(no_walls_ball_hit_location))
-
-			gripper_x_offset = np.clip(
-				ball_hit_offset,
-				-0.5*self.goal_width + self.gripper_depth,
-				0.5*self.goal_width - self.gripper_depth)
-
-			self.reflected_ball_poses.append(gripper_x_offset + self.center_of_goal[0])
-
-			# self.desired_position = self.center_of_goal
-			self.desired_position[0] = self.center_of_goal[0] + gripper_x_offset
-			self.desired_position[1] = self.center_of_goal[1]
-			self.desired_position[2] = self.center_of_goal[2]
-		# print("Desired Position: {0}".format(self.desired_position))
-			
-
-		  
 
 if __name__ == '__main__':
 	rospy.init_node('blocker')
