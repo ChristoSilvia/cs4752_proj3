@@ -42,17 +42,17 @@ class controller() :
         # rospy.set_param("limb", self.limb_name)
         # print "Initialized game"
 
-        # try:
-        #     init_robot = rospy.ServiceProxy('/game_server/init', Init)
-        #     self.limb_name = init_robot('ZIC',self.logo)
-        #     rospy.set_param("limb", self.limb_name)
-        #     if self.limb_name == "none":
-        #         print "You were not given an arm!"
-        #     else:
-        #         print "You have been given the %s arm!" % self.limb_name
-        # except rospy.ServiceException, e:
-        #     print "Service call failed: %s"%e
-        self.limb_name = rospy.get_param("limb")
+        try:
+            init_robot = rospy.ServiceProxy('/game_server/init', Init)
+            self.limb_name = init_robot('ZIC',self.logo)
+            rospy.set_param("limb", self.limb_name)
+            if self.limb_name == "none":
+                print "You were not given an arm!"
+            else:
+                print "You have been given the %s arm!" % self.limb_name
+        except rospy.ServiceException, e:
+            print "Service call failed: %s"%e
+        # self.limb_name = rospy.get_param("limb")
 
         # print "Initialized game"
 

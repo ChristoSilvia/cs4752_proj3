@@ -25,5 +25,5 @@
 
     <!-- <node if="$(arg rviz)" pkg="rviz" type="rviz" name="rviz" args="-d $(find cs4752_proj3)/config/plane_frame.rviz"/> -->
 
-    <node unless="$(arg calibrate)" pkg="tf" type="static_transform_publisher" name="kinect_tf" args="0.03 0.42 1.4 0.684086283844 -0.728707328089 0.017858845998 0.0263182040758 camera_rgb_optical_frame base 100"/>
+    <node unless="$(arg calibrate)" pkg="tf" type="static_transform_publisher" name="kinect_tf" args="rosrun tf static_transform_publisher 0.0 0.54 1.56 0.706757866675 -0.706757866675 0.0222107607464 0.0222107607464 camera_rgb_optical_frame base 100"/>
 </launch>
