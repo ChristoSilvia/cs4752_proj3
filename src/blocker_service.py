@@ -128,7 +128,7 @@ class Blocker():
 
 		self.null_norm_squared = 0.1**2
 
-		self.block(Action())
+		#self.block(Action())
 
 		rospy.spin()
 
