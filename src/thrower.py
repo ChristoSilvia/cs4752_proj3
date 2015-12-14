@@ -140,6 +140,17 @@ class thrower :
 		elif index == 44 : #tested once, centered
 			new_pose = {'w0': -2.299053703216553, 'w1': 0.46786413977050784, 'w2': 0.00038349519653320315, 'e0': -2.6507187984375, 'e1': 1.231019580871582, 's0': -0.21437381486206056, 's1': -0.2918398445617676}
 
+
+
+		shots = {}
+		shots["high"]
+		shots["high"]["left"]
+		shots["high"]["mid"]
+		shots["high"]["right"]
+		shots["high"]["right"]
+		shots["med"]
+		shots["low"]
+
 		if self.limb == "right" :
 			new_pose = mirror_left_arm_joints(new_pose)
 

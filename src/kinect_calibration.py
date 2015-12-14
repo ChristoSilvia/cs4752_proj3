@@ -34,6 +34,10 @@ class kinect_calibration:
 		get_desired_block_poses = createService("get_desired_block_poses", BlockPoses, self.get_desired_block_poses, "")
 		check_blocks = createService("check_blocks", Action, self.check_blocks, "")
 
+		# req = BlockPoses()
+		# req.num_blocks = 2
+		# self.get_desired_block_poses(req)
+		
 		# req = CalibrateKinect()
 		# req.calibration_points = ["BOTTOM_MIDDLE", "BOTTOM_CORNER", "TOP_MIDDLE", "TOP_CORNER"]
 		# self.calibrate(req)
@@ -44,6 +48,9 @@ class kinect_calibration:
 			if self.ts != None:
 				self.tf_br.sendTransform(t)
 			self.rate.sleep()
+
+	def check_blocks(self, req):
+		return BlockPosesResponse([])
 
 	def imagecallback(self,data):
 		try:
@@ -115,10 +122,30 @@ class kinect_calibration:
 		desired_block_poses = []
 		for point in desired_block_points:
 			p = Pose()
-			p.position = numpy_to_point(point)
+
+			basePt = self.KinectToBasePointTF(point)
+			
+			p.position = basePt
 			desired_block_poses.append(p)
 
 		return BlockPosesResponse(desired_block_poses)
+
+	def KinectToBasePointTF(self, point):
+		ps = PointStamped()
+		kinect_frame = "/camera_rgb_optical_frame"
+		ps.header.frame_id = kinect_frame
+		ps.header.stamp = self.transform_listener.getLatestCommonTime(kinect_frame, 'base')
+		ps.point = deepcopy(point)
+
+		# basePt = None
+		# while basePt == None:
+		# 	try:
+		basePt = self.transform_listener.transformPoint('base', ps)
+			# except:
+			# 	print "no transform"
+			# 	basePt = None
+			# self.rate.sleep()
+		return basePt
 
 	def calibrate(self, req):
 		calibration_points = req.calibration_points
@@ -229,8 +256,8 @@ class kinect_calibration:
 		point_count = 0
 		prompt = True
 
-		self.depth_topic = "/camera/depth_registered/sw_registered/image_rect"
-		# self.depth_topic = "/camera/depth_registered/hw_registered/image_rect"
+		# self.depth_topic = "/camera/depth_registered/sw_registered/image_rect"
+		self.depth_topic = "/camera/depth_registered/hw_registered/image_rect"
 		self.image_sub = rospy.Subscriber("/camera/rgb/image_rect_color",Image,self.imagecallback, queue_size=1)
 		self.depth_image_sub = rospy.Subscriber(self.depth_topic, Image, self.depthcallback, queue_size=1)
 		self.depth_image = None

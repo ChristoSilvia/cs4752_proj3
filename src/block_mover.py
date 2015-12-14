@@ -24,7 +24,7 @@ def loginfo(logstring):
     rospy.loginfo("Block_mover: {0}".format(logstring))
 
 class block_mover() :
-    def __init__(self, limb):
+    def __init__(self):
         rospy.init_node('block_mover')
         loginfo("Initialized node Block_mover")
 
@@ -37,6 +37,7 @@ class block_mover() :
         self.get_desired_block_poses = createServiceProxy("get_desired_block_poses", BlockPoses, "")
 
         init_blocks = createService("init_blocks", BlockPoses, self.setDesiredBlockPoses, "")
+        self.arm = baxter_interface.Limb(self.limb_name)
 
         self.block_size = .045
         
@@ -51,7 +52,7 @@ class block_mover() :
         self.initial_pose.orientation = Quaternion(ori[0],ori[1],ori[2],ori[3])
         # print self.initial_pose
 
-        self.table_z = initial_pose.position.z - ((self.num_blocks -1) * block_size)
+        self.table_z = self.initial_pose.position.z - ((self.num_blocks -1) * self.block_size)
         block_poses = []
         for i in range(0,self.num_blocks) :
             bp = deepcopy(self.initial_pose)
@@ -66,22 +67,26 @@ class block_mover() :
 
         self.init_block_poses = self.getInitBlockPoses()
 
-        self.desired_block_poses = self.get_desired_block_poses(self.num_blocks)
+        self.desired_block_poses = self.get_desired_block_poses(self.num_blocks).poses
 
-        for i in range(0,self.num_blocks):
-            if i != 0:
-                self.move_robot(MOVE_TO_POSE_INTERMEDIATE, self.limb, init_block_poses[i])
+        for desired_block_pose in self.desired_block_poses:
+            desired_block_pose.orientation = deepcopy(self.initial_pose.orientation)
 
-            self.move_robot(CLOSE_GRIPPER, self.limb, Pose())
+        # for i in range(0,self.num_blocks):
+        #     if i != 0:
+        #         self.move_robot(MOVE_TO_POSE_INTERMEDIATE, self.limb_name, self.init_block_poses[i])
 
-            self.move_robot(MOVE_TO_POSE_INTERMEDIATE, self.limb, self.desired_block_poses[i])
+        #     self.move_robot(CLOSE_GRIPPER, self.limb_name, Pose())
 
-            self.move_robot(OPEN_GRIPPER, self.limb, Pose())
+        #     self.move_robot(MOVE_TO_POSE_INTERMEDIATE, self.limb_name, self.desired_block_poses[i])
+
+        #     self.move_robot(OPEN_GRIPPER, self.limb_name, Pose())
+
+        return BlockPosesResponse(self.desired_block_poses)
 
 
 if __name__ == '__main__':
-    limb = 'left'
-    ct = block_mover(limb)
+    ct = block_mover()
     try:
         rospy.spin()
     except KeyboardInterrupt:
