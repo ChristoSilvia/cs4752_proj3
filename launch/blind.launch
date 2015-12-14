@@ -1,0 +1,4 @@
+<launch>
+    <node name="blind" pkg="cs4752_proj3" type="blind.py" output="screen"></node>
+    <node name="throw" pkg="cs4752_proj3" type="thrower.py" output="screen"></node>
+</launch>
