@@ -50,7 +50,8 @@ class controller() :
 
         self.block_size = .045
         self.arm = baxter_interface.Limb(self.limb_name)
-        self.PHASE = 1
+        self.PHASE = rospy.get_param("phase")
+        # self.PHASE = 1
 
         self.rate = rospy.Rate(1)
 
