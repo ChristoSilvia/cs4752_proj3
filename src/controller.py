@@ -36,22 +36,23 @@ class controller() :
         # self.game_init = createServiceProxy("game server/init", Init, "")
         # self.limb_name = self.game_init("ZIC",None)
         # rospy.set_param("limb", self.limb_name)
-        # self.game_state_sub = rospy.Subscriber("/game_server/game_state", GameState, self.game_state_callback, queue_size=1)
+        self.game_state_sub = rospy.Subscriber("/game_server/game_state", GameState, self.game_state_callback, queue_size=1)
 
         self.limb_name = rospy.get_param("limb")
+        self.limb_name = 'left'
         self.num_blocks = rospy.get_param("num_blocks")
 
         self.move_robot = createServiceProxy("move_robot", MoveRobot, "")
 
-        self.block = createServiceProxy('block', Action, "")
-        self.grasp = createServiceProxy("grasp", Action, "")
+        # self.block = createServiceProxy('block', Action, "")
+        # self.grasp = createServiceProxy("grasp", Action, "")
 
         # self.get_block_poses = createServiceProxy("get_block_poses", BlockPoses, "")
 
         self.block_size = .045
         self.arm = baxter_interface.Limb(self.limb_name)
-        self.PHASE = rospy.get_param("phase")
-        # self.PHASE = 1
+        # self.PHASE = rospy.get_param("phase")
+        self.PHASE = 2
 
         self.rate = rospy.Rate(1)
 
@@ -65,7 +66,7 @@ class controller() :
     def PHASE1(self):
         loginfo("PHASE: 1")
         
-        self.calibrate_kinect = createServiceProxy("calibrate_kinect", CalibrateKinect, "")
+        # self.calibrate_kinect = createServiceProxy("calibrate_kinect", CalibrateKinect, "")
 
         def CALIBRATE():
             loginfo("Calibrating Playing Field and Kinect Frame")
@@ -87,8 +88,9 @@ class controller() :
             loginfo("Initializing Blocks")
             
             res = self.init_blocks(self.num_blocks)
+            print res
 
-            loginfo("Finished Initializing Blocks: %r" % res)
+            loginfo("Finished Initializing Blocks")
 
         INIT_BLOCKS()
 
@@ -188,6 +190,7 @@ class controller() :
 
         elif self.PHASE == 2 :
             # returns after the the blocks have been moved
+            "got here"
             self.PHASE2()
             self.PHASE = 3
 

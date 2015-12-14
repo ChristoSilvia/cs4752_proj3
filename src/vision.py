@@ -21,7 +21,7 @@ from baxter_pykdl import baxter_kinematics
 import baxter_interface
 from cs4752_proj3.msg import *
 from cs4752_proj3.srv import *
-import sys
+import sys, os
 
 class HSVMask:
 	def __init__(self, color, camera, mask, num_blobs=1, calibrated=True):
@@ -36,10 +36,8 @@ class HSVMask:
 
 		if self.color == 'blue':
 			self.shape = cv2.imread('../ros_ws/src/cs4752_proj3/img/square.jpg', 0)
-			# cv2.imshow("test", self.shape)
 		elif self.color == 'pink':
 			self.shape = cv2.imread('../ros_ws/src/cs4752_proj3/img/circle.jpg', 0)
-			# cv2.imshow("test", self.shape)
 
 	def changeMask(self, param, arg, inc):
 		limit = {}
@@ -270,7 +268,12 @@ class Vision:
 						image_frame = "/%s_hand_camera" % self.limb_name
 					obj_image_pose = PoseStamped()
 					obj_image_pose.header.frame_id = image_frame
-					obj_image_pose.header.stamp = self.transform_listener.getLatestCommonTime(image_frame, 'base')
+
+					# self.suppress_stderr()
+					stamp = self.transform_listener.getLatestCommonTime(image_frame, 'base')
+					# self.enable_stderr()
+					
+					obj_image_pose.header.stamp = stamp
 					obj_image_pose.pose = obj_pose
 
 					obj_base_pose = self.transform_listener.transformPose('base', obj_image_pose)
@@ -410,6 +413,14 @@ class Vision:
 		pose.position = Point(toball[0], -toball[1], toball[2])
 		pose.orientation = Quaternion(0,0,0,1)
 		return pose
+
+	def suppress_stderr(self):
+		self.stderr = sys.stderr
+		null = open(os.devnull,'wb')
+		sys.stderr = os.devnull
+
+	def enable_stderr(self):
+		sys.stderr = self.stderr
 
 if __name__ == '__main__':
 	try:
